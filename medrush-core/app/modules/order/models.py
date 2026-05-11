@@ -57,7 +57,7 @@ class OrderStatusHistory(Base):
     from_status = Column(Text, nullable=True)
     to_status = Column(Text, nullable=False)
     actor_id = Column(Text, nullable=True)
-    metadata = Column(JSONB, nullable=True)
+    extra_data = Column("metadata", JSONB, nullable=True)
     occurred_at = Column(DateTime(timezone=True), nullable=False)
 
 

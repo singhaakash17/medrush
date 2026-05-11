@@ -9,6 +9,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { catalogApi } from '@/api/catalog';
 import { Button } from '@/components/ui/Button';
 import { formatPaise } from '@/lib/money';
+import { useCartStore } from '@/store/cart';
+import { MEDICINES, PHARMACIES } from '@/mock/data';
 
 const SCHEDULE_INFO: Record<string, { label: string; color: string }> = {
   H: { label: 'Schedule H — Prescription required', color: '#F59E0B' },
@@ -21,21 +23,56 @@ const SCHEDULE_INFO: Record<string, { label: string; color: string }> = {
 
 export default function MedicineDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const addItem = useCartStore((s) => s.addItem);
+  const cartItems = useCartStore((s) => s.items);
 
-  const { data: medicine, isLoading } = useQuery({
+  const { data: apiMedicine, isLoading } = useQuery({
     queryKey: ['medicine', id],
-    queryFn: () => catalogApi.getMedicine(id!),
+    queryFn: () => catalogApi.getMedicine(id!).catch(() => null),
     enabled: !!id,
   });
 
   const { data: warnings } = useQuery({
     queryKey: ['warnings', id],
-    queryFn: () => catalogApi.getWarnings(id!),
+    queryFn: () => catalogApi.getWarnings(id!).catch(() => []),
     enabled: !!id,
   });
 
+  // Fall back to local mock data when API returns 404 / null
+  const mockMed = MEDICINES.find((m) => m.id === id);
+  const medicine = apiMedicine ?? (mockMed ? {
+    id: mockMed.id,
+    brand_name: mockMed.brand_name,
+    generic_name: mockMed.generic_name,
+    form: mockMed.form,
+    strength: mockMed.strength,
+    mrp_paise: mockMed.mrp_paise,
+    pack_size: mockMed.pack_size,
+    pack_unit: mockMed.pack_unit,
+    rx_required: mockMed.rx_required,
+    schedule: mockMed.rx_required ? 'H' : 'OTC',
+    is_discontinued: false,
+    manufacturer_id: mockMed.manufacturer,
+  } : null);
+
+  const qtyInCart = cartItems.find((i) => i.medicine_id === id)?.qty ?? 0;
+  const DEFAULT_PHARMACY = PHARMACIES[0];
+
   const handleAddToCart = () => {
-    Alert.alert('Added to cart', `${medicine?.brand_name} has been added to your cart.`);
+    if (!medicine) return;
+    addItem({
+      medicine_id: medicine.id,
+      medicine_name: medicine.brand_name,
+      generic_name: medicine.generic_name,
+      form: medicine.form,
+      qty: 1,
+      unit_price_paise: medicine.mrp_paise,
+      mrp_paise: medicine.mrp_paise,
+      rx_required: medicine.rx_required ?? false,
+      pharmacy_id: DEFAULT_PHARMACY.pharmacy_id,
+      pharmacy_name: DEFAULT_PHARMACY.name,
+    });
+    Alert.alert('Added to cart', `${medicine.brand_name} added to your cart.`);
   };
 
   if (isLoading) {
@@ -120,7 +157,9 @@ export default function MedicineDetailScreen() {
       {!medicine.is_discontinued && (
         <View style={styles.footer}>
           <Button
-            title={medicine.rx_required ? 'Upload Rx & Add to Cart' : 'Add to Cart'}
+            title={qtyInCart > 0
+              ? `In Cart (${qtyInCart}) — Add More`
+              : (medicine.rx_required ? 'Upload Rx & Add to Cart' : 'Add to Cart')}
             onPress={handleAddToCart}
           />
         </View>

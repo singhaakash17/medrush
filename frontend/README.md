@@ -19,8 +19,9 @@ React Native (Expo) app for MedRush — India's 15-minute prescription medicine 
 ## Prerequisites
 
 - Node.js 20+
-- Expo CLI (`npm install -g expo-cli`)
 - iOS Simulator (macOS) or Android emulator, or Expo Go on a physical device
+
+The dev server uses the project’s `expo` dependency (`npx expo start`). Do **not** install the deprecated global `expo-cli`; if you ever need a global CLI, fix npm permissions or use a Node version manager instead of `sudo npm install -g`.
 
 ## Setup
 

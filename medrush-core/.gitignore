@@ -1,15 +1,36 @@
+# Byte-compiled / cache
 __pycache__/
 *.py[cod]
-*.egg-info/
-.env
-.env.example
+*$py.class
+
+# Virtual environments
 .venv/
 venv/
+env/
+
+# Packaging
+*.egg-info/
 dist/
 build/
+
+# Environment (keep `.env.example` tracked as the template)
+.env
+
+# Testing & type-check caches
 .pytest_cache/
 .mypy_cache/
+.ruff_cache/
 htmlcov/
-.coverage
-alembic/versions/*.py
-!alembic/versions/.gitkeep
+.coverage*
+coverage.xml
+*.cover
+.hypothesis/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+
+# IDE
+.idea/

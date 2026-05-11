@@ -21,14 +21,23 @@ export default function SearchScreen() {
   const [userLon, setUserLon] = useState<number | null>(null);
   const router = useRouter();
 
-  // Get user location on mount
+  // Default to Indiranagar, Bengaluru when location unavailable
+  const BENGALURU_DEFAULT = { lat: 12.9784, lon: 77.6408 };
+
   React.useEffect(() => {
+    // Set Bengaluru default immediately so pharmacies show without waiting
+    setUserLat(BENGALURU_DEFAULT.lat);
+    setUserLon(BENGALURU_DEFAULT.lon);
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status === 'granted') {
-        const loc = await Location.getCurrentPositionAsync({});
-        setUserLat(loc.coords.latitude);
-        setUserLon(loc.coords.longitude);
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserLat(loc.coords.latitude);
+          setUserLon(loc.coords.longitude);
+        }
+      } catch {
+        // Keep Bengaluru default — location unavailable on this device/emulator
       }
     })();
   }, []);

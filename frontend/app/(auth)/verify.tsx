@@ -22,9 +22,9 @@ export default function VerifyScreen() {
     }
     setLoading(true);
     try {
-      // In production: POST /api/v1/identity/otp/verify → returns { principal_id, role }
-      // Mocked: treat any 6-digit OTP as valid and use phone as principal_id
-      const mockPrincipalId = `principal_${phone?.replace('+91', '')}`;
+      // Use seeded test principal for the demo phone number so profile & data load correctly
+      const isTestPhone = phone === '+919876543210';
+      const mockPrincipalId = isTestPhone ? 'cust_test_01' : `principal_${phone?.replace('+91', '')}`;
       await login(mockPrincipalId, 'customer');
       router.replace('/(tabs)/');
     } catch {

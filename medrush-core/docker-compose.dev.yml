@@ -2,13 +2,14 @@ version: "3.9"
 
 services:
   postgres:
-    image: postgis/postgis:16-3.4-alpine
+    image: postgis/postgis:16-3.4
+    platform: linux/amd64
     environment:
       POSTGRES_USER: medrush
       POSTGRES_PASSWORD: medrush_dev
       POSTGRES_DB: medrush_core
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./scripts/db_grants.sql:/docker-entrypoint-initdb.d/01_grants.sql
@@ -21,7 +22,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
