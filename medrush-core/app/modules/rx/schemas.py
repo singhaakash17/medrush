@@ -2,6 +2,26 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
+class UploadRxIn(BaseModel):
+    """After frontend uploads file to S3, it sends the s3_key here."""
+    s3_key: str
+    family_member_id: str | None = None
+
+
+class PresignedUploadOut(BaseModel):
+    upload_url: str
+    s3_key: str
+    expires_in: int
+
+
+class OcrResultItem(BaseModel):
+    raw_medicine_name: str
+    dosage: str | None
+    frequency: str | None
+    duration_days: int | None
+    qty_prescribed: int | None
+
+
 class PrescriptionOut(BaseModel):
     id: str
     principal_id: str
@@ -18,6 +38,11 @@ class PrescriptionOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PrescriptionDetailOut(PrescriptionOut):
+    items: list["RxItemOut"] = []
+    flags: list["RxFlagOut"] = []
 
 
 class RxItemOut(BaseModel):
@@ -42,3 +67,8 @@ class RxFlagOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PharmacyVerifyRxIn(BaseModel):
+    approved: bool
+    notes: str | None = None

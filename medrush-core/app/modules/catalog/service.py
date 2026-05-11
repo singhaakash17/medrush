@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.modules.catalog.repository import get_medicine, search_medicines, list_warnings
-from app.modules.catalog.schemas import MedicineOut, MedicineWarningOut
+from app.modules.catalog.repository import get_medicine, search_medicines, list_warnings, get_substitutes
+from app.modules.catalog.schemas import MedicineOut, MedicineWarningOut, SubstituteOut
 from app.lib.errors import NotFoundError
 
 
@@ -17,3 +17,7 @@ async def search(session: AsyncSession, q: str) -> list[MedicineOut]:
 
 async def get_warnings(session: AsyncSession, medicine_id: str) -> list[MedicineWarningOut]:
     return await list_warnings(session, medicine_id)
+
+
+async def get_substitutes_for(session: AsyncSession, medicine_id: str) -> list[SubstituteOut]:
+    return await get_substitutes(session, medicine_id)

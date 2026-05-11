@@ -12,7 +12,11 @@ class Settings(BaseSettings):
     KAFKA_BROKERS: str = "localhost:9092"
     ENABLE_RX_VERIFICATION: bool = False
     ENABLE_PAYMENT_GATEWAY: bool = False
-    CORS_ORIGINS: str = "http://localhost:3000"
+    RAZORPAY_KEY_ID: str = "rzp_test_placeholder"
+    RAZORPAY_KEY_SECRET: str = "rzp_secret_placeholder"
+    S3_BUCKET_RX: str = "medrush-rx-vault"
+    S3_REGION: str = "ap-south-1"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:3001"
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

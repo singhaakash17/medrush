@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
-from app.modules.geo.schemas import ServiceAreaOut
+from app.modules.geo.schemas import ServiceAreaOut, NearbyPharmacyOut
 from app.modules.geo import service
 
 router = APIRouter()
@@ -21,3 +21,14 @@ async def get_service_area(
     session: AsyncSession = Depends(get_async_session),
 ) -> ServiceAreaOut:
     return await service.fetch_service_area(session, area_id)
+
+
+@router.get("/nearby-pharmacies", response_model=list[NearbyPharmacyOut])
+async def nearby_pharmacies(
+    lat: float = Query(..., description="Customer latitude"),
+    lon: float = Query(..., description="Customer longitude"),
+    radius_m: int = Query(3000, le=5000, description="Search radius in metres"),
+    medicine_id: str | None = Query(None, description="Filter to pharmacies that have this medicine in stock"),
+    session: AsyncSession = Depends(get_async_session),
+) -> list[NearbyPharmacyOut]:
+    return await service.nearby_pharmacies(session, lat, lon, radius_m, medicine_id)

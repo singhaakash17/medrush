@@ -64,6 +64,16 @@ export interface MedicineWarning {
   severity: string;
 }
 
+export interface Substitute {
+  id: string;
+  brand_name: string;
+  generic_name: string;
+  form: string;
+  strength: string | null;
+  mrp_paise: number;
+  rank: number;
+}
+
 // ─── Inventory ───────────────────────────────────────────────────────────────
 export interface InventoryItem {
   pharmacy_id: string;
@@ -73,6 +83,24 @@ export interface InventoryItem {
   mrp_paise: number;
   discount_bps: number | null;
   is_listed: boolean;
+}
+
+// ─── Geo ─────────────────────────────────────────────────────────────────────
+export interface NearbyPharmacy {
+  pharmacy_id: string;
+  name: string;
+  address_line1: string;
+  city: string;
+  phone: string;
+  is_open_now: boolean;
+  distance_m: number;
+  eta_minutes: number;
+  lat: number;
+  lon: number;
+  medicine_id?: string;
+  qty_available?: number;
+  selling_price_paise?: number;
+  mrp_paise?: number;
 }
 
 // ─── Cart ────────────────────────────────────────────────────────────────────
@@ -136,9 +164,36 @@ export interface Prescription {
   hospital_name: string | null;
   prescribed_at: string | null;
   ocr_status: string;
+  ocr_confidence_bps: number | null;
   is_verified: boolean;
   retention_class: string;
   created_at: string;
+  updated_at: string;
+}
+
+export interface RxItem {
+  id: string;
+  rx_id: string;
+  medicine_id: string | null;
+  raw_medicine_name: string;
+  dosage: string | null;
+  frequency: string | null;
+  duration_days: number | null;
+  qty_prescribed: number | null;
+}
+
+export interface RxFlag {
+  id: string;
+  rx_id: string;
+  flag_type: string;
+  description: string;
+  severity: string;
+  created_at: string;
+}
+
+export interface PrescriptionDetail extends Prescription {
+  items: RxItem[];
+  flags: RxFlag[];
 }
 
 // ─── Pharmacy ────────────────────────────────────────────────────────────────
@@ -165,12 +220,56 @@ export interface Assignment {
   assigned_at: string;
   picked_up_at: string | null;
   delivered_at: string | null;
+  failed_at: string | null;
+  failure_reason: string | null;
 }
 
-// ─── Notification ────────────────────────────────────────────────────────────
+export interface Rider {
+  id: string;
+  principal_id: string;
+  full_name: string;
+  phone_e164: string;
+  vehicle_type: string;
+  vehicle_number: string;
+  status: string;
+  rating: number | null;
+}
+
+export interface RiderShift {
+  id: string;
+  rider_id: string;
+  started_at: string;
+  ended_at: string | null;
+  orders_completed: number;
+  earnings_paise: number;
+}
+
+// ─── Notification ─────────────────────────────────────────────────────────────
 export interface DeliveryLog {
   id: string;
   channel: string;
   status: string;
   created_at: string;
+}
+
+// ─── Payment ─────────────────────────────────────────────────────────────────
+export interface Payment {
+  id: string;
+  order_id: string;
+  amount_paise: number;
+  method: string;
+  status: string;
+  provider: string;
+}
+
+export interface PharmacyPayout {
+  id: string;
+  pharmacy_id: string;
+  gross_paise: number;
+  net_paise: number;
+  commission_paise: number;
+  status: string;
+  cycle_start: string;
+  cycle_end: string;
+  paid_at: string | null;
 }

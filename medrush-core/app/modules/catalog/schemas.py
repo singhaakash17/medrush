@@ -46,3 +46,13 @@ class MedicineWarningOut(BaseModel):
     severity: str
 
     model_config = {"from_attributes": True}
+
+
+class SubstituteOut(BaseModel):
+    id: str
+    brand_name: str
+    generic_name: str
+    form: str
+    strength: str | None
+    mrp_paise: int
+    rank: int

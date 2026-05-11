@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
-from app.modules.catalog.schemas import MedicineOut, MedicineWarningOut
+from app.modules.catalog.schemas import MedicineOut, MedicineWarningOut, SubstituteOut
 from app.modules.catalog import service
 
 router = APIRouter()
@@ -9,7 +9,7 @@ router = APIRouter()
 
 @router.get("/medicines", response_model=list[MedicineOut])
 async def search_medicines(
-    q: str = Query(..., min_length=1),
+    q: str = Query(..., min_length=2, description="Brand name, generic name, or salt"),
     session: AsyncSession = Depends(get_async_session),
 ) -> list[MedicineOut]:
     return await service.search(session, q)
@@ -29,3 +29,11 @@ async def get_warnings(
     session: AsyncSession = Depends(get_async_session),
 ) -> list[MedicineWarningOut]:
     return await service.get_warnings(session, medicine_id)
+
+
+@router.get("/medicines/{medicine_id}/substitutes", response_model=list[SubstituteOut])
+async def get_substitutes(
+    medicine_id: str,
+    session: AsyncSession = Depends(get_async_session),
+) -> list[SubstituteOut]:
+    return await service.get_substitutes_for(session, medicine_id)

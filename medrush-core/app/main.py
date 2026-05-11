@@ -23,6 +23,7 @@ from app.modules.payment.router import router as payment_router
 from app.modules.logistics.router import router as logistics_router
 from app.modules.notification.router import router as notification_router
 from app.modules.audit.router import router as audit_router
+from app.modules.ws.router import router as ws_router
 
 
 @asynccontextmanager
@@ -60,6 +61,7 @@ app.include_router(payment_router, prefix="/api/v1/payments", tags=["payments"])
 app.include_router(logistics_router, prefix="/api/v1/logistics", tags=["logistics"])
 app.include_router(notification_router, prefix="/api/v1/notifications", tags=["notifications"])
 app.include_router(audit_router, prefix="/api/v1/audit", tags=["audit"])
+app.include_router(ws_router, prefix="/ws", tags=["websocket"])
 
 
 @app.get("/health", tags=["health"])

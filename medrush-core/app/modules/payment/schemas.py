@@ -3,6 +3,23 @@ from datetime import date, datetime
 from typing import Literal
 
 
+class InitiatePaymentIn(BaseModel):
+    method: Literal["upi", "card", "cod", "wallet"] = "cod"
+
+
+class InitiatePaymentOut(BaseModel):
+    payment_id: str
+    method: str
+    rzp_order_id: str | None
+    rzp_key_id: str | None
+    amount_paise: int
+
+
+class VerifyPaymentIn(BaseModel):
+    rzp_payment_id: str
+    rzp_signature: str
+
+
 class PaymentOut(BaseModel):
     id: str
     order_id: str

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.inventory.repository import (
     get_inventory_item, list_inventory_by_pharmacy, list_batches,
-    list_reservations_by_order, list_ledger_entries,
+    list_reservations_by_order, list_ledger_entries, toggle_listing as repo_toggle,
 )
 from app.modules.inventory.schemas import InventoryItemOut, InventoryBatchOut, ReservationOut, InventoryLedgerOut
 from app.lib.errors import NotFoundError
@@ -28,3 +28,13 @@ async def get_order_reservations(session: AsyncSession, order_id: str) -> list[R
 
 async def get_ledger(session: AsyncSession, pharmacy_id: str, medicine_id: str) -> list[InventoryLedgerOut]:
     return await list_ledger_entries(session, pharmacy_id, medicine_id)
+
+
+async def toggle_listing(
+    session: AsyncSession, pharmacy_id: str, medicine_id: str, is_listed: bool, reason: str | None = None
+) -> InventoryItemOut:
+    item = await repo_toggle(session, pharmacy_id, medicine_id, is_listed, reason)
+    await session.commit()
+    if not item:
+        raise NotFoundError(f"Inventory item not found for pharmacy={pharmacy_id} medicine={medicine_id}")
+    return item

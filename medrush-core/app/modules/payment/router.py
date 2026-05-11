@@ -1,10 +1,32 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
-from app.modules.payment.schemas import PaymentOut, RefundOut, PharmacyPayoutOut, BankAccountOut
+from app.modules.payment.schemas import (
+    PaymentOut, RefundOut, PharmacyPayoutOut, BankAccountOut,
+    InitiatePaymentIn, InitiatePaymentOut, VerifyPaymentIn,
+)
 from app.modules.payment import service
 
 router = APIRouter()
+
+
+@router.post("/orders/{order_id}/initiate", response_model=InitiatePaymentOut, status_code=201)
+async def initiate_payment(
+    order_id: str,
+    payload: InitiatePaymentIn,
+    x_user_id: str = Header(..., alias="x-user-id"),
+    session: AsyncSession = Depends(get_async_session),
+) -> InitiatePaymentOut:
+    return await service.initiate_payment(session, order_id, x_user_id, payload.method)
+
+
+@router.post("/orders/{order_id}/verify", response_model=PaymentOut)
+async def verify_payment(
+    order_id: str,
+    payload: VerifyPaymentIn,
+    session: AsyncSession = Depends(get_async_session),
+) -> PaymentOut:
+    return await service.verify_payment(session, order_id, payload)
 
 
 @router.get("/{payment_id}", response_model=PaymentOut)

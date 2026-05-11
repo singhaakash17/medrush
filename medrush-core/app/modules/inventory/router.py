@@ -1,8 +1,15 @@
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
 from app.modules.inventory.schemas import InventoryItemOut, InventoryBatchOut, ReservationOut, InventoryLedgerOut
 from app.modules.inventory import service
+
+
+class ToggleListingIn(BaseModel):
+    is_listed: bool
+    reason: str | None = None
+
 
 router = APIRouter()
 
@@ -48,3 +55,13 @@ async def list_order_reservations(
     session: AsyncSession = Depends(get_async_session),
 ) -> list[ReservationOut]:
     return await service.get_order_reservations(session, order_id)
+
+
+@router.patch("/pharmacies/{pharmacy_id}/medicines/{medicine_id}/listing", response_model=InventoryItemOut)
+async def toggle_listing(
+    pharmacy_id: str,
+    medicine_id: str,
+    payload: ToggleListingIn,
+    session: AsyncSession = Depends(get_async_session),
+) -> InventoryItemOut:
+    return await service.toggle_listing(session, pharmacy_id, medicine_id, payload.is_listed, payload.reason)
