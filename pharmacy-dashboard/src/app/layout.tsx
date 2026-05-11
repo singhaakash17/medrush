@@ -1,15 +1,22 @@
 import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'MedRush Pharmacy Dashboard',
-  description: 'Pharmacy partner portal for MedRush — 15-minute medicine delivery',
+  title: 'MedRush Pharmacy',
+  description: 'Pharmacy partner portal — 15-minute medicine delivery',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body>
         <Providers>{children}</Providers>
       </body>

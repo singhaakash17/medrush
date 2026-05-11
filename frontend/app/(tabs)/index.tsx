@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
@@ -16,6 +15,7 @@ import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { OrderCard } from '@/components/OrderCard';
 import { SlaTimer } from '@/components/SlaTimer';
+import { T } from '@/theme';
 import {
   PHARMACIES,
   MEDICINES,
@@ -26,9 +26,9 @@ import {
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
 const QUICK_ACTIONS = [
-  { icon: 'medical-outline' as const, label: 'Medicines', route: '/(tabs)/search', color: '#0EA5E9' },
-  { icon: 'document-text-outline' as const, label: 'Upload Rx', route: '/rx/upload', color: '#10B981' },
-  { icon: 'cart-outline' as const, label: 'Cart', route: '/(tabs)/cart', color: '#F59E0B' },
+  { icon: 'medical-outline' as const, label: 'Medicines', route: '/(tabs)/search', color: T.Colors.navyMid },
+  { icon: 'document-text-outline' as const, label: 'Upload Rx', route: '/rx/upload', color: T.Colors.emerald },
+  { icon: 'cart-outline' as const, label: 'Cart', route: '/(tabs)/cart', color: T.Colors.amber },
   { icon: 'receipt-outline' as const, label: 'Orders', route: '/(tabs)/orders', color: '#8B5CF6' },
 ];
 
@@ -43,12 +43,10 @@ const CATEGORY_FILTERS = [
   { label: 'Eye Care', emoji: '👁️', query: 'eye' },
 ];
 
-// Top 4 nearby pharmacies sorted by distance
 const NEARBY_PHARMACIES = [...PHARMACIES]
   .sort((a, b) => a.distance_m - b.distance_m)
   .slice(0, 4);
 
-// 6 popular medicines for the home screen
 const POPULAR_MEDICINE_IDS = ['med_001', 'med_007', 'med_013', 'med_028', 'med_032', 'med_019'];
 const POPULAR_MEDICINES = MEDICINES.filter((m) => POPULAR_MEDICINE_IDS.includes(m.id));
 
@@ -71,19 +69,19 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
         <View
           style={[
             styles.openBadge,
-            { backgroundColor: pharmacy.is_open_now ? '#D1FAE5' : '#FEE2E2' },
+            { backgroundColor: pharmacy.is_open_now ? T.Colors.emeraldLight : T.Colors.crimsonLight },
           ]}
         >
           <View
             style={[
               styles.openDot,
-              { backgroundColor: pharmacy.is_open_now ? '#10B981' : '#EF4444' },
+              { backgroundColor: pharmacy.is_open_now ? T.Colors.emerald : T.Colors.crimson },
             ]}
           />
           <Text
             style={[
               styles.openBadgeText,
-              { color: pharmacy.is_open_now ? '#065F46' : '#991B1B' },
+              { color: pharmacy.is_open_now ? T.Colors.emeraldDark : '#991B1B' },
             ]}
           >
             {pharmacy.is_open_now ? 'Open' : 'Closed'}
@@ -96,13 +94,13 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
       <Text style={styles.pharmacyArea}>{pharmacy.area}</Text>
       <View style={styles.pharmacyMeta}>
         <View style={styles.ratingRow}>
-          <Ionicons name="star" size={12} color="#F59E0B" />
+          <Ionicons name="star" size={12} color={T.Colors.amber} />
           <Text style={styles.ratingText}>{pharmacy.rating.toFixed(1)}</Text>
         </View>
         <Text style={styles.metaDot}>·</Text>
         <Text style={styles.distanceText}>{distanceLabel}</Text>
         <Text style={styles.metaDot}>·</Text>
-        <Ionicons name="flash" size={12} color="#0EA5E9" />
+        <Ionicons name="flash" size={12} color={T.Colors.navyMid} />
         <Text style={styles.etaText}>{pharmacy.eta_minutes} min</Text>
       </View>
     </TouchableOpacity>
@@ -140,7 +138,7 @@ function MedicineCard({ medicine }: { medicine: MockMedicine }) {
       }
     >
       <View style={styles.medicineIconBox}>
-        <Ionicons name="medical" size={24} color="#0EA5E9" />
+        <Ionicons name="medical" size={24} color={T.Colors.navyMid} />
       </View>
       <Text style={styles.medicineBrand} numberOfLines={1}>{medicine.brand_name}</Text>
       <Text style={styles.medicineGeneric} numberOfLines={1}>{medicine.generic_name}</Text>
@@ -148,16 +146,16 @@ function MedicineCard({ medicine }: { medicine: MockMedicine }) {
       <Text style={styles.medicinePrice}>₹{priceRupees}</Text>
       {qty === 0 ? (
         <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={handleAdd}>
-          <Ionicons name="add" size={16} color="#fff" />
+          <Ionicons name="add" size={16} color={T.Colors.textInverse} />
         </TouchableOpacity>
       ) : (
         <View style={styles.qtyRow}>
           <TouchableOpacity style={styles.qtyBtn} onPress={() => useCartStore.getState().updateQty(medicine.id, qty - 1)}>
-            <Ionicons name="remove" size={14} color="#0EA5E9" />
+            <Ionicons name="remove" size={14} color={T.Colors.navyMid} />
           </TouchableOpacity>
           <Text style={styles.qtyText}>{qty}</Text>
           <TouchableOpacity style={styles.qtyBtn} onPress={handleAdd}>
-            <Ionicons name="add" size={14} color="#0EA5E9" />
+            <Ionicons name="add" size={14} color={T.Colors.navyMid} />
           </TouchableOpacity>
         </View>
       )}
@@ -181,7 +179,6 @@ export default function HomeScreen() {
     queryFn: ordersApi.list,
     enabled: !!principalId,
     refetchInterval: 30_000,
-    // Fall back gracefully — real API may not be available
     retry: 1,
   });
 
@@ -196,27 +193,27 @@ export default function HomeScreen() {
     <ScrollView
       style={styles.screen}
       contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={T.Colors.navyMid} />}
       showsVerticalScrollIndicator={false}
     >
       {/* ── Header ── */}
       <View style={styles.header}>
         <View style={styles.locationRow}>
-          <Ionicons name="location" size={18} color="#0EA5E9" />
+          <Ionicons name="location" size={18} color={T.Colors.navyMid} />
           <View>
             <Text style={styles.locationLabel}>Deliver to</Text>
             <Text style={styles.locationValue}>Indiranagar, Bengaluru</Text>
           </View>
-          <Ionicons name="chevron-down" size={16} color="#6B7280" />
+          <Ionicons name="chevron-down" size={16} color={T.Colors.textSecondary} />
         </View>
         <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/(tabs)/profile')}>
-          <Ionicons name="person-circle-outline" size={32} color="#0EA5E9" />
+          <Ionicons name="person-circle-outline" size={34} color={T.Colors.navyMid} />
         </TouchableOpacity>
       </View>
 
       {/* ── Search bar ── */}
       <TouchableOpacity style={styles.searchBar} onPress={() => router.push('/(tabs)/search')}>
-        <Ionicons name="search-outline" size={20} color="#9CA3AF" />
+        <Ionicons name="search-outline" size={20} color={T.Colors.textTertiary} />
         <Text style={styles.searchText}>Search medicines, generics, salts…</Text>
         <View style={styles.rxBadge}>
           <Text style={styles.rxBadgeText}>Rx</Text>
@@ -226,7 +223,7 @@ export default function HomeScreen() {
       {/* ── ETA Banner ── */}
       <View style={styles.etaBanner}>
         <View style={styles.etaIconBox}>
-          <Ionicons name="flash" size={22} color="#fff" />
+          <Ionicons name="flash" size={22} color={T.Colors.textInverse} />
         </View>
         <View style={styles.etaContent}>
           <Text style={styles.etaTitle}>Medicines in 15 min</Text>
@@ -245,7 +242,7 @@ export default function HomeScreen() {
             style={styles.actionCard}
             onPress={() => router.push(a.route as any)}
           >
-            <View style={[styles.actionIcon, { backgroundColor: `${a.color}15` }]}>
+            <View style={[styles.actionIcon, { backgroundColor: `${a.color}18` }]}>
               <Ionicons name={a.icon} size={24} color={a.color} />
             </View>
             <Text style={styles.actionLabel}>{a.label}</Text>
@@ -329,12 +326,12 @@ export default function HomeScreen() {
 
       {/* ── Rx Vault CTA ── */}
       <TouchableOpacity style={styles.rxVault} onPress={() => router.push('/rx/vault' as any)}>
-        <Ionicons name="shield-checkmark-outline" size={28} color="#10B981" />
+        <Ionicons name="shield-checkmark-outline" size={28} color={T.Colors.emerald} />
         <View style={styles.rxVaultText}>
           <Text style={styles.rxVaultTitle}>Rx Vault — Secure & Encrypted</Text>
           <Text style={styles.rxVaultSub}>Upload and store prescriptions safely for reuse</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color="#10B981" />
+        <Ionicons name="chevron-forward" size={20} color={T.Colors.emerald} />
       </TouchableOpacity>
 
       {/* ── Recent orders ── */}
@@ -359,10 +356,10 @@ export default function HomeScreen() {
         <Text style={styles.plusCta}>Try Free</Text>
       </TouchableOpacity>
 
-      {/* ── Empty state (only when API returned nothing and not loading) ── */}
+      {/* ── Empty state ── */}
       {!isLoading && (!orders || orders.length === 0) && (
         <View style={styles.empty}>
-          <Ionicons name="bag-outline" size={64} color="#E5E7EB" />
+          <Ionicons name="bag-outline" size={64} color={T.Colors.border} />
           <Text style={styles.emptyTitle}>Your first order awaits</Text>
           <Text style={styles.emptyText}>Search for medicines or upload a prescription</Text>
           <TouchableOpacity
@@ -380,136 +377,124 @@ export default function HomeScreen() {
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  screen: { flex: 1, backgroundColor: T.Colors.surface },
   content: { paddingBottom: 32 },
 
-  // Header
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: T.Spacing.lg,
+    paddingTop: T.Spacing.lg,
+    paddingBottom: T.Spacing.sm,
+    backgroundColor: T.Colors.white,
   },
   locationRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  locationLabel: { fontSize: 11, color: '#9CA3AF' },
-  locationValue: { fontSize: 14, fontWeight: '700', color: '#111827' },
+  locationLabel: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary },
+  locationValue: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
   profileBtn: { padding: 4 },
 
-  // Search
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 12,
-    paddingHorizontal: 14,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    marginHorizontal: T.Spacing.lg,
+    marginTop: T.Spacing.md,
+    marginBottom: T.Spacing.md,
+    paddingHorizontal: T.Spacing.md,
     paddingVertical: 13,
     gap: 10,
-    shadowColor: '#0EA5E9',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    ...T.Shadow.cardMd,
   },
-  searchText: { flex: 1, fontSize: 14, color: '#9CA3AF' },
-  rxBadge: { backgroundColor: '#10B981', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
-  rxBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff' },
+  searchText: { flex: 1, fontSize: T.FontSize.base, color: T.Colors.textTertiary },
+  rxBadge: {
+    backgroundColor: T.Colors.emerald,
+    borderRadius: T.Radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  rxBadgeText: { fontSize: T.FontSize['2xs'], fontWeight: T.FontWeight.black, color: T.Colors.textInverse },
 
-  // ETA Banner
   etaBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#0EA5E9',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 16,
-    padding: 14,
-    gap: 12,
+    backgroundColor: T.Colors.navy,
+    borderRadius: T.Radius.lg,
+    marginHorizontal: T.Spacing.lg,
+    marginBottom: T.Spacing.lg,
+    padding: T.Spacing.md,
+    gap: T.Spacing.md,
   },
   etaIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   etaContent: { flex: 1 },
-  etaTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  etaSubtitle: { color: '#BAE6FD', fontSize: 12, marginTop: 2 },
+  etaTitle: { color: T.Colors.textInverse, fontWeight: T.FontWeight.black, fontSize: T.FontSize.md },
+  etaSubtitle: { color: 'rgba(255,255,255,0.6)', fontSize: T.FontSize.xs, marginTop: 2 },
   etaTimePill: {
-    backgroundColor: '#fff',
+    backgroundColor: T.Colors.emerald,
     borderRadius: 20,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  etaTimeText: { fontSize: 12, fontWeight: '800', color: '#0EA5E9' },
+  etaTimeText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.black, color: T.Colors.textInverse },
 
-  // Quick actions
-  actions: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 24 },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginHorizontal: T.Spacing.lg,
+    marginBottom: T.Spacing['2xl'],
+  },
   actionCard: {
     flex: 1,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 12,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.md,
+    padding: T.Spacing.md,
     alignItems: 'center',
     gap: 6,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    ...T.Shadow.card,
   },
-  actionIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  actionLabel: { fontSize: 11, fontWeight: '600', color: '#374151' },
+  actionIcon: { width: 44, height: 44, borderRadius: T.Radius.md, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
 
-  // Sections
-  section: { marginHorizontal: 16, marginBottom: 24 },
+  section: { marginHorizontal: T.Spacing.lg, marginBottom: T.Spacing['2xl'] },
   sectionHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: T.Spacing.md,
   },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
-  seeAllText: { fontSize: 13, fontWeight: '600', color: '#0EA5E9' },
+  sectionTitle: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  seeAllText: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, color: T.Colors.navyMid },
 
-  // Category pills
   categoryScroll: { gap: 8, paddingRight: 4 },
   categoryPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#fff',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    backgroundColor: T.Colors.white,
+    paddingHorizontal: T.Spacing.md,
+    paddingVertical: T.Spacing.sm,
+    borderRadius: T.Radius.full,
+    ...T.Shadow.card,
   },
-  categoryEmoji: { fontSize: 16 },
-  categoryLabel: { fontSize: 13, fontWeight: '600', color: '#374151' },
+  categoryEmoji: { fontSize: T.FontSize.lg },
+  categoryLabel: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
 
-  // Horizontal scroll container
   horizontalScroll: { gap: 12, paddingRight: 4 },
 
-  // Pharmacy card
   pharmacyCard: {
-    width: 180,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    width: 182,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.md,
+    ...T.Shadow.cardMd,
   },
   pharmacyCardHeader: { marginBottom: 8 },
   openBadge: {
@@ -519,120 +504,112 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 20,
+    borderRadius: T.Radius.full,
   },
   openDot: { width: 6, height: 6, borderRadius: 3 },
-  openBadgeText: { fontSize: 11, fontWeight: '600' },
-  pharmacyName: { fontSize: 14, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  pharmacyArea: { fontSize: 12, color: '#9CA3AF', marginBottom: 8 },
+  openBadgeText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.semibold },
+  pharmacyName: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginBottom: 2 },
+  pharmacyArea: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary, marginBottom: 8 },
   pharmacyMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  ratingText: { fontSize: 12, fontWeight: '600', color: '#374151' },
-  metaDot: { fontSize: 12, color: '#D1D5DB' },
-  distanceText: { fontSize: 12, color: '#6B7280' },
-  etaText: { fontSize: 12, color: '#0EA5E9', fontWeight: '600' },
+  ratingText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
+  metaDot: { fontSize: T.FontSize.xs, color: T.Colors.border },
+  distanceText: { fontSize: T.FontSize.xs, color: T.Colors.textSecondary },
+  etaText: { fontSize: T.FontSize.xs, color: T.Colors.navyMid, fontWeight: T.FontWeight.semibold },
 
-  // Medicine card
   medicineCard: {
-    width: 150,
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    padding: 14,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 3,
+    width: 152,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.md,
+    ...T.Shadow.cardMd,
   },
   medicineIconBox: {
     width: 44,
     height: 44,
-    borderRadius: 12,
-    backgroundColor: '#EFF6FF',
+    borderRadius: T.Radius.md,
+    backgroundColor: T.Colors.navyLight,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
   },
-  medicineBrand: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  medicineGeneric: { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  medicineForm: { fontSize: 11, color: '#9CA3AF', marginTop: 2, marginBottom: 8 },
-  medicinePrice: { fontSize: 15, fontWeight: '800', color: '#0EA5E9' },
+  medicineBrand: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  medicineGeneric: { fontSize: T.FontSize.xs, color: T.Colors.textSecondary, marginTop: 2 },
+  medicineForm: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary, marginTop: 2, marginBottom: 8 },
+  medicinePrice: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.black, color: T.Colors.navyMid },
   qtyRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F0F9FF',
-    borderRadius: 8,
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.sm,
     marginTop: 8,
     paddingHorizontal: 4,
     paddingVertical: 2,
   },
   qtyBtn: { padding: 4 },
-  qtyText: { fontSize: 14, fontWeight: '700', color: '#0EA5E9', minWidth: 20, textAlign: 'center' },
+  qtyText: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.navyMid, minWidth: 20, textAlign: 'center' },
   addBtn: {
     position: 'absolute',
     bottom: 12,
     right: 12,
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: '#0EA5E9',
+    width: 30,
+    height: 30,
+    borderRadius: T.Radius.sm,
+    backgroundColor: T.Colors.navyMid,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // Rx Vault
   rxVault: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ECFDF5',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 16,
-    gap: 12,
+    backgroundColor: T.Colors.emeraldLight,
+    borderRadius: T.Radius.lg,
+    marginHorizontal: T.Spacing.lg,
+    marginBottom: T.Spacing['2xl'],
+    padding: T.Spacing.lg,
+    gap: T.Spacing.md,
     borderWidth: 1,
     borderColor: '#A7F3D0',
   },
   rxVaultText: { flex: 1 },
-  rxVaultTitle: { fontSize: 14, fontWeight: '700', color: '#065F46' },
-  rxVaultSub: { fontSize: 12, color: '#059669', marginTop: 2 },
+  rxVaultTitle: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.emeraldDark },
+  rxVaultSub: { fontSize: T.FontSize.xs, color: T.Colors.emerald, marginTop: 2 },
 
-  // MedRush Plus card
   plusCard: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#0C4A6E',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 24,
-    padding: 16,
+    backgroundColor: T.Colors.navy,
+    borderRadius: T.Radius.lg,
+    marginHorizontal: T.Spacing.lg,
+    marginBottom: T.Spacing['2xl'],
+    padding: T.Spacing.lg,
   },
   plusLeft: { flex: 1 },
-  plusTitle: { color: '#fff', fontWeight: '800', fontSize: 15 },
-  plusSub: { color: '#BAE6FD', fontSize: 12, marginTop: 4 },
+  plusTitle: { color: T.Colors.textInverse, fontWeight: T.FontWeight.black, fontSize: T.FontSize.md },
+  plusSub: { color: 'rgba(255,255,255,0.5)', fontSize: T.FontSize.xs, marginTop: 4 },
   plusCta: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 8,
+    backgroundColor: T.Colors.amber,
+    borderRadius: T.Radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 13,
+    color: T.Colors.textInverse,
+    fontWeight: T.FontWeight.bold,
+    fontSize: T.FontSize.sm,
     overflow: 'hidden',
   },
 
-  // Empty state
   empty: { alignItems: 'center', paddingTop: 40, paddingHorizontal: 32 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginTop: 16 },
-  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 8, textAlign: 'center' },
+  emptyTitle: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.bold, color: T.Colors.textSecondary, marginTop: 16 },
+  emptyText: { fontSize: T.FontSize.base, color: T.Colors.textTertiary, marginTop: 8, textAlign: 'center' },
   emptyBtn: {
     marginTop: 20,
-    backgroundColor: '#0EA5E9',
-    borderRadius: 12,
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.md,
     paddingHorizontal: 28,
     paddingVertical: 14,
   },
-  emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  emptyBtnText: { color: T.Colors.textInverse, fontWeight: T.FontWeight.bold, fontSize: T.FontSize.md },
 });

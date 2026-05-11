@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore, type LocalCartItem } from '@/store/cart';
+import { T } from '@/theme';
 import { MOCK_ADDRESSES } from '@/mock/data';
 
 const DELIVERY_FEE = 2500; // ₹25
@@ -15,14 +16,13 @@ type PaymentMethod = 'upi' | 'card' | 'cod';
 
 function CartItemRow({ item }: { item: LocalCartItem }) {
   const updateQty = useCartStore((s) => s.updateQty);
-  const removeItem = useCartStore((s) => s.removeItem);
   const subtotal = item.unit_price_paise * item.qty;
   const discount = Math.round((item.mrp_paise - item.unit_price_paise) / item.mrp_paise * 100);
 
   return (
     <View style={styles.itemRow}>
       <View style={styles.itemIcon}>
-        <Ionicons name="medical" size={22} color="#0EA5E9" />
+        <Ionicons name="medical" size={22} color={T.Colors.navyMid} />
       </View>
       <View style={styles.itemInfo}>
         <Text style={styles.itemName} numberOfLines={1}>{item.medicine_name}</Text>
@@ -43,14 +43,14 @@ function CartItemRow({ item }: { item: LocalCartItem }) {
           style={styles.qtyBtn}
           onPress={() => updateQty(item.medicine_id, item.qty - 1)}
         >
-          <Ionicons name={item.qty === 1 ? 'trash-outline' : 'remove'} size={16} color="#EF4444" />
+          <Ionicons name={item.qty === 1 ? 'trash-outline' : 'remove'} size={16} color={T.Colors.crimson} />
         </TouchableOpacity>
         <Text style={styles.qtyText}>{item.qty}</Text>
         <TouchableOpacity
           style={styles.qtyBtn}
           onPress={() => updateQty(item.medicine_id, item.qty + 1)}
         >
-          <Ionicons name="add" size={16} color="#0EA5E9" />
+          <Ionicons name="add" size={16} color={T.Colors.navyMid} />
         </TouchableOpacity>
       </View>
     </View>
@@ -95,7 +95,9 @@ export default function CartScreen() {
   if (items.length === 0) {
     return (
       <View style={styles.empty}>
-        <Ionicons name="cart-outline" size={80} color="#E5E7EB" />
+        <View style={styles.emptyIconWrap}>
+          <Ionicons name="cart-outline" size={48} color={T.Colors.navyMid} />
+        </View>
         <Text style={styles.emptyTitle}>Your cart is empty</Text>
         <Text style={styles.emptyText}>Add medicines from Home or Search</Text>
         <TouchableOpacity style={styles.browseBtn} onPress={() => router.push('/(tabs)/search')}>
@@ -110,7 +112,7 @@ export default function CartScreen() {
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {/* Pharmacy header */}
         <View style={styles.pharmacyRow}>
-          <Ionicons name="storefront-outline" size={18} color="#0EA5E9" />
+          <Ionicons name="storefront-outline" size={18} color={T.Colors.navyMid} />
           <Text style={styles.pharmacyName}>{pharmacyName}</Text>
           <TouchableOpacity onPress={() => Alert.alert('Change Pharmacy', 'Clear cart to choose a different pharmacy.', [
             { text: 'Clear & Change', style: 'destructive', onPress: () => { clearCart(); router.push('/(tabs)/search'); } },
@@ -130,7 +132,7 @@ export default function CartScreen() {
         {/* Savings banner */}
         {savings > 0 && (
           <View style={styles.savingsBanner}>
-            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+            <Ionicons name="checkmark-circle" size={16} color={T.Colors.emerald} />
             <Text style={styles.savingsText}>You save ₹{(savings / 100).toFixed(0)} on this order</Text>
           </View>
         )}
@@ -172,7 +174,7 @@ export default function CartScreen() {
               <View style={styles.radioOuter}>
                 {paymentMethod === pm.id && <View style={styles.radioInner} />}
               </View>
-              <Ionicons name={pm.icon} size={20} color={paymentMethod === pm.id ? '#0EA5E9' : '#6B7280'} />
+              <Ionicons name={pm.icon} size={20} color={paymentMethod === pm.id ? T.Colors.navyMid : T.Colors.textSecondary} />
               <Text style={[styles.payLabel, paymentMethod === pm.id && styles.payLabelActive]}>
                 {pm.label}
               </Text>
@@ -197,8 +199,8 @@ export default function CartScreen() {
           </View>
           {savings > 0 && (
             <View style={styles.billRow}>
-              <Text style={[styles.billLabel, { color: '#10B981' }]}>Discount savings</Text>
-              <Text style={[styles.billValue, { color: '#10B981' }]}>−₹{(savings / 100).toFixed(0)}</Text>
+              <Text style={[styles.billLabel, { color: T.Colors.emerald }]}>Discount savings</Text>
+              <Text style={[styles.billValue, { color: T.Colors.emerald }]}>−₹{(savings / 100).toFixed(0)}</Text>
             </View>
           )}
           <View style={styles.divider} />
@@ -223,7 +225,7 @@ export default function CartScreen() {
           disabled={placing}
         >
           {placing ? (
-            <ActivityIndicator color="#fff" />
+            <ActivityIndicator color={T.Colors.textInverse} />
           ) : (
             <Text style={styles.placeBtnText}>
               {paymentMethod === 'upi' ? 'Pay via UPI' : paymentMethod === 'card' ? 'Pay via Card' : 'Place Order'}
@@ -236,6 +238,7 @@ export default function CartScreen() {
       <Modal visible={showPayModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>
               {paymentMethod === 'cod' ? 'Confirm Order' : `Pay ₹${(total / 100).toFixed(0)}`}
             </Text>
@@ -270,126 +273,164 @@ export default function CartScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
-  content: { padding: 16 },
+  screen: { flex: 1, backgroundColor: T.Colors.surface },
+  content: { padding: T.Spacing.lg },
 
   pharmacyRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#EFF6FF', borderRadius: 10, padding: 12, marginBottom: 12,
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.md,
+    padding: T.Spacing.md,
+    marginBottom: T.Spacing.md,
   },
-  pharmacyName: { flex: 1, fontSize: 14, fontWeight: '600', color: '#1D4ED8' },
-  changeLink: { fontSize: 13, color: '#0EA5E9', fontWeight: '600' },
+  pharmacyName: { flex: 1, fontSize: T.FontSize.base, fontWeight: T.FontWeight.semibold, color: T.Colors.navyMid },
+  changeLink: { fontSize: T.FontSize.sm, color: T.Colors.navyMid, fontWeight: T.FontWeight.semibold },
 
   card: {
-    backgroundColor: '#fff', borderRadius: 14, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
   },
 
   itemRow: {
-    flexDirection: 'row', alignItems: 'center', padding: 14,
-    borderBottomWidth: 1, borderBottomColor: '#F3F4F6',
+    flexDirection: 'row', alignItems: 'center', padding: T.Spacing.md,
+    borderBottomWidth: 1, borderBottomColor: T.Colors.borderLight,
   },
   itemIcon: {
-    width: 44, height: 44, borderRadius: 10, backgroundColor: '#F0F9FF',
-    justifyContent: 'center', alignItems: 'center', marginRight: 12,
+    width: 44, height: 44, borderRadius: T.Radius.md,
+    backgroundColor: T.Colors.navyLight,
+    justifyContent: 'center', alignItems: 'center', marginRight: T.Spacing.md,
   },
   itemInfo: { flex: 1, marginRight: 8 },
-  itemName: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  itemGeneric: { fontSize: 12, color: '#6B7280', marginTop: 1 },
+  itemName: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  itemGeneric: { fontSize: T.FontSize.xs, color: T.Colors.textSecondary, marginTop: 1 },
   itemPriceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-  itemPrice: { fontSize: 14, fontWeight: '700', color: '#111827' },
-  itemMrp: { fontSize: 12, color: '#9CA3AF', textDecorationLine: 'line-through' },
-  itemDiscount: { fontSize: 11, color: '#10B981', fontWeight: '600' },
-  rxBadge: { backgroundColor: '#FEF3C7', borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
-  rxBadgeText: { fontSize: 9, fontWeight: '700', color: '#92400E' },
+  itemPrice: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  itemMrp: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary, textDecorationLine: 'line-through' },
+  itemDiscount: { fontSize: T.FontSize['2xs'], color: T.Colors.emerald, fontWeight: T.FontWeight.semibold },
+  rxBadge: { backgroundColor: T.Colors.amberLight, borderRadius: 4, paddingHorizontal: 4, paddingVertical: 1 },
+  rxBadgeText: { fontSize: 9, fontWeight: T.FontWeight.black, color: '#92400E' },
 
   qtyControls: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   qtyBtn: {
-    width: 30, height: 30, borderRadius: 8, borderWidth: 1.5, borderColor: '#E5E7EB',
-    justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff',
+    width: 30, height: 30, borderRadius: T.Radius.sm,
+    borderWidth: 1.5, borderColor: T.Colors.border,
+    justifyContent: 'center', alignItems: 'center', backgroundColor: T.Colors.white,
   },
-  qtyText: { fontSize: 15, fontWeight: '700', color: '#111827', minWidth: 20, textAlign: 'center' },
+  qtyText: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, minWidth: 20, textAlign: 'center' },
 
   savingsBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 12,
+    backgroundColor: T.Colors.emeraldLight,
+    borderRadius: T.Radius.md, padding: 10, marginBottom: T.Spacing.md,
   },
-  savingsText: { fontSize: 13, color: '#10B981', fontWeight: '600' },
+  savingsText: { fontSize: T.FontSize.sm, color: T.Colors.emerald, fontWeight: T.FontWeight.semibold },
 
   sectionCard: {
-    backgroundColor: '#fff', borderRadius: 14, padding: 16, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.lg,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
   },
-  sectionTitle: { fontSize: 15, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  sectionTitle: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginBottom: T.Spacing.md },
 
   addressRow: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 12, padding: 10, borderRadius: 10,
-    borderWidth: 1.5, borderColor: '#E5E7EB', marginBottom: 8,
+    flexDirection: 'row', alignItems: 'flex-start', gap: T.Spacing.md,
+    padding: 10, borderRadius: T.Radius.md,
+    borderWidth: 1.5, borderColor: T.Colors.border, marginBottom: 8,
   },
-  addressRowSelected: { borderColor: '#0EA5E9', backgroundColor: '#F0F9FF' },
-  addrLabel: { fontSize: 13, fontWeight: '700', color: '#111827' },
-  addrLine: { fontSize: 12, color: '#374151', marginTop: 2 },
-  addrCity: { fontSize: 11, color: '#9CA3AF', marginTop: 1 },
+  addressRowSelected: { borderColor: T.Colors.navyMid, backgroundColor: T.Colors.navyLight },
+  addrLabel: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  addrLine: { fontSize: T.FontSize.xs, color: T.Colors.textSecondary, marginTop: 2 },
+  addrCity: { fontSize: T.FontSize['2xs'], color: T.Colors.textTertiary, marginTop: 1 },
   radioOuter: {
-    width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: '#0EA5E9',
+    width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: T.Colors.navyMid,
     justifyContent: 'center', alignItems: 'center', marginTop: 2,
   },
-  radioInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#0EA5E9' },
+  radioInner: { width: 8, height: 8, borderRadius: 4, backgroundColor: T.Colors.navyMid },
 
   payRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 10,
-    borderWidth: 1.5, borderColor: '#E5E7EB', marginBottom: 8,
+    flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md,
+    padding: T.Spacing.md, borderRadius: T.Radius.md,
+    borderWidth: 1.5, borderColor: T.Colors.border, marginBottom: 8,
   },
-  payRowSelected: { borderColor: '#0EA5E9', backgroundColor: '#F0F9FF' },
-  payLabel: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  payLabelActive: { color: '#0EA5E9', fontWeight: '700' },
+  payRowSelected: { borderColor: T.Colors.navyMid, backgroundColor: T.Colors.navyLight },
+  payLabel: { fontSize: T.FontSize.base, color: T.Colors.textSecondary, fontWeight: T.FontWeight.medium },
+  payLabelActive: { color: T.Colors.navyMid, fontWeight: T.FontWeight.bold },
 
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 10 },
+  divider: { height: 1, backgroundColor: T.Colors.borderLight, marginVertical: 10 },
   billRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  billLabel: { fontSize: 14, color: '#6B7280' },
-  billValue: { fontSize: 14, color: '#374151', fontWeight: '500' },
-  billTotal: { fontSize: 16, fontWeight: '700', color: '#111827' },
-  billTotalValue: { fontSize: 18, fontWeight: '800', color: '#111827' },
+  billLabel: { fontSize: T.FontSize.base, color: T.Colors.textSecondary },
+  billValue: { fontSize: T.FontSize.base, color: T.Colors.textSecondary, fontWeight: T.FontWeight.medium },
+  billTotal: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  billTotalValue: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.black, color: T.Colors.textPrimary },
 
   footer: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: '#fff', flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12, paddingBottom: 24,
-    borderTopWidth: 1, borderTopColor: '#E5E7EB',
+    backgroundColor: T.Colors.white,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: T.Spacing.lg,
+    paddingVertical: T.Spacing.md,
+    paddingBottom: 28,
+    borderTopWidth: 1, borderTopColor: T.Colors.border,
     shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.08, shadowRadius: 8, elevation: 8,
   },
-  footerTotal: { fontSize: 20, fontWeight: '800', color: '#111827' },
-  footerSub: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
+  footerTotal: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.black, color: T.Colors.textPrimary },
+  footerSub: { fontSize: T.FontSize['2xs'], color: T.Colors.textTertiary, marginTop: 2 },
   placeBtn: {
-    flex: 1, marginLeft: 16, backgroundColor: '#0EA5E9', borderRadius: 14,
+    flex: 1, marginLeft: T.Spacing.lg,
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.lg,
     paddingVertical: 16, alignItems: 'center',
   },
-  placeBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  placeBtnText: { color: T.Colors.textInverse, fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold },
 
-  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: '#F9FAFB' },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111827', marginTop: 16 },
-  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 6, textAlign: 'center' },
-  browseBtn: {
-    marginTop: 24, backgroundColor: '#0EA5E9', borderRadius: 12, paddingHorizontal: 28, paddingVertical: 14,
+  empty: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: T.Colors.surface },
+  emptyIconWrap: {
+    width: 96, height: 96, borderRadius: 48,
+    backgroundColor: T.Colors.navyLight,
+    justifyContent: 'center', alignItems: 'center', marginBottom: T.Spacing.lg,
   },
-  browseBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  emptyTitle: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginTop: 8 },
+  emptyText: { fontSize: T.FontSize.base, color: T.Colors.textTertiary, marginTop: 6, textAlign: 'center' },
+  browseBtn: {
+    marginTop: T.Spacing['2xl'],
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.md,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+  },
+  browseBtnText: { color: T.Colors.textInverse, fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalCard: {
-    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40,
+    backgroundColor: T.Colors.white,
+    borderTopLeftRadius: T.Radius['2xl'],
+    borderTopRightRadius: T.Radius['2xl'],
+    padding: T.Spacing['2xl'],
+    paddingBottom: 40,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: '#111827', marginBottom: 16, textAlign: 'center' },
-  modalSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 20 },
+  modalHandle: {
+    width: 40, height: 4, backgroundColor: T.Colors.border,
+    borderRadius: 2, alignSelf: 'center', marginBottom: T.Spacing.xl,
+  },
+  modalTitle: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.black, color: T.Colors.textPrimary, marginBottom: T.Spacing.lg, textAlign: 'center' },
+  modalSubtitle: { fontSize: T.FontSize.base, color: T.Colors.textSecondary, textAlign: 'center', marginBottom: T.Spacing.xl },
   upiBox: {
-    backgroundColor: '#F0F9FF', borderRadius: 12, padding: 16, alignItems: 'center', marginBottom: 20,
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.md, padding: T.Spacing.lg, alignItems: 'center', marginBottom: T.Spacing.xl,
   },
-  upiLabel: { fontSize: 12, color: '#9CA3AF' },
-  upiId: { fontSize: 22, fontWeight: '800', color: '#0EA5E9', marginTop: 4 },
-  upiNote: { fontSize: 12, color: '#6B7280', marginTop: 4 },
+  upiLabel: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary },
+  upiId: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.black, color: T.Colors.navyMid, marginTop: 4 },
+  upiNote: { fontSize: T.FontSize.xs, color: T.Colors.textSecondary, marginTop: 4 },
   confirmBtn: {
-    backgroundColor: '#0EA5E9', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.lg,
+    paddingVertical: 16, alignItems: 'center', marginBottom: T.Spacing.md,
   },
-  confirmBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  confirmBtnText: { color: T.Colors.textInverse, fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold },
   cancelLink: { alignItems: 'center', paddingVertical: 8 },
-  cancelLinkText: { fontSize: 14, color: '#9CA3AF' },
+  cancelLinkText: { fontSize: T.FontSize.base, color: T.Colors.textTertiary },
 });

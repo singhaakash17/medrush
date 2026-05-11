@@ -10,15 +10,16 @@ import { catalogApi } from '@/api/catalog';
 import { Button } from '@/components/ui/Button';
 import { formatPaise } from '@/lib/money';
 import { useCartStore } from '@/store/cart';
+import { T } from '@/theme';
 import { MEDICINES, PHARMACIES } from '@/mock/data';
 
 const SCHEDULE_INFO: Record<string, { label: string; color: string }> = {
-  H: { label: 'Schedule H — Prescription required', color: '#F59E0B' },
-  H1: { label: 'Schedule H1 — Strict prescription required', color: '#EF4444' },
+  H: { label: 'Schedule H — Prescription required', color: T.Colors.amber },
+  H1: { label: 'Schedule H1 — Strict prescription required', color: T.Colors.crimson },
   X: { label: 'Schedule X — Controlled substance', color: '#7C3AED' },
-  OTC: { label: 'Over the counter', color: '#10B981' },
-  GENERAL: { label: 'General medicine', color: '#10B981' },
-  G: { label: 'General medicine', color: '#10B981' },
+  OTC: { label: 'Over the counter', color: T.Colors.emerald },
+  GENERAL: { label: 'General medicine', color: T.Colors.emerald },
+  G: { label: 'General medicine', color: T.Colors.emerald },
 };
 
 export default function MedicineDetailScreen() {
@@ -38,7 +39,6 @@ export default function MedicineDetailScreen() {
     enabled: !!id,
   });
 
-  // Fall back to local mock data when API returns 404 / null
   const mockMed = MEDICINES.find((m) => m.id === id);
   const medicine = apiMedicine ?? (mockMed ? {
     id: mockMed.id,
@@ -78,7 +78,7 @@ export default function MedicineDetailScreen() {
   if (isLoading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#0EA5E9" />
+        <ActivityIndicator size="large" color={T.Colors.navyMid} />
       </View>
     );
   }
@@ -86,34 +86,53 @@ export default function MedicineDetailScreen() {
   if (!medicine) {
     return (
       <View style={styles.center}>
+        <Ionicons name="alert-circle-outline" size={48} color={T.Colors.border} />
         <Text style={styles.errorText}>Medicine not found</Text>
       </View>
     );
   }
 
   const scheduleInfo = medicine.schedule ? SCHEDULE_INFO[medicine.schedule] : null;
+  const discountPaise = Math.round(medicine.mrp_paise * 0.15);
+  const sellingPrice = medicine.mrp_paise - discountPaise;
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Medicine icon + header */}
+        <View style={styles.heroCard}>
+          <View style={styles.medicineIcon}>
+            <Ionicons name="medical" size={36} color={T.Colors.navyMid} />
+          </View>
           <Text style={styles.brand}>{medicine.brand_name}</Text>
           <Text style={styles.generic}>{medicine.generic_name}</Text>
-          <Text style={styles.form}>{medicine.form} · {medicine.pack_size} {medicine.pack_unit}</Text>
+          <Text style={styles.form}>{medicine.form} · {medicine.strength} · {medicine.pack_size} {medicine.pack_unit}</Text>
+          <Text style={styles.manufacturer}>{medicine.manufacturer_id}</Text>
         </View>
 
-        {/* Price */}
+        {/* Price card */}
         <View style={styles.priceBox}>
-          <Text style={styles.price}>{formatPaise(medicine.mrp_paise)}</Text>
-          <Text style={styles.priceLabel}>MRP (incl. all taxes)</Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.price}>{formatPaise(sellingPrice)}</Text>
+            <Text style={styles.mrp}>{formatPaise(medicine.mrp_paise)}</Text>
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>15% off</Text>
+            </View>
+          </View>
+          <Text style={styles.priceLabel}>MRP incl. all taxes · per pack</Text>
+          {qtyInCart > 0 && (
+            <View style={styles.inCartBadge}>
+              <Ionicons name="cart" size={14} color={T.Colors.navyMid} />
+              <Text style={styles.inCartText}>{qtyInCart} in cart</Text>
+            </View>
+          )}
         </View>
 
         {/* Schedule badge */}
         {scheduleInfo && (
-          <View style={[styles.scheduleBox, { backgroundColor: `${scheduleInfo.color}15` }]}>
+          <View style={[styles.infoBadge, { backgroundColor: `${scheduleInfo.color}15` }]}>
             <Ionicons name="information-circle-outline" size={18} color={scheduleInfo.color} />
-            <Text style={[styles.scheduleText, { color: scheduleInfo.color }]}>
+            <Text style={[styles.infoBadgeText, { color: scheduleInfo.color }]}>
               {scheduleInfo.label}
             </Text>
           </View>
@@ -129,11 +148,23 @@ export default function MedicineDetailScreen() {
         )}
 
         {medicine.is_discontinued && (
-          <View style={[styles.scheduleBox, { backgroundColor: '#FEF2F2' }]}>
-            <Ionicons name="close-circle-outline" size={18} color="#EF4444" />
-            <Text style={[styles.scheduleText, { color: '#EF4444' }]}>This medicine is discontinued</Text>
+          <View style={[styles.infoBadge, { backgroundColor: T.Colors.crimsonLight }]}>
+            <Ionicons name="close-circle-outline" size={18} color={T.Colors.crimson} />
+            <Text style={[styles.infoBadgeText, { color: T.Colors.crimson }]}>This medicine is discontinued</Text>
           </View>
         )}
+
+        {/* Delivery info */}
+        <View style={styles.deliveryCard}>
+          <View style={styles.deliveryRow}>
+            <Ionicons name="flash" size={18} color={T.Colors.emerald} />
+            <Text style={styles.deliveryText}>Delivered in 15 minutes</Text>
+          </View>
+          <View style={styles.deliveryRow}>
+            <Ionicons name="shield-checkmark-outline" size={18} color={T.Colors.navyMid} />
+            <Text style={styles.deliveryText}>Licensed pharmacy · Genuine medicines</Text>
+          </View>
+        </View>
 
         {/* Warnings */}
         {warnings && warnings.length > 0 && (
@@ -144,7 +175,7 @@ export default function MedicineDetailScreen() {
                 <Ionicons
                   name="warning-outline"
                   size={16}
-                  color={w.severity === 'critical' ? '#EF4444' : '#F59E0B'}
+                  color={w.severity === 'critical' ? T.Colors.crimson : T.Colors.amber}
                 />
                 <Text style={styles.warningText}>{w.description}</Text>
               </View>
@@ -169,58 +200,90 @@ export default function MedicineDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  errorText: { fontSize: 16, color: '#6B7280' },
-  content: { padding: 20, paddingBottom: 100 },
-  header: { marginBottom: 20 },
-  brand: { fontSize: 24, fontWeight: '800', color: '#111827' },
-  generic: { fontSize: 16, color: '#6B7280', marginTop: 4 },
-  form: { fontSize: 14, color: '#9CA3AF', marginTop: 6 },
-  priceBox: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  price: { fontSize: 28, fontWeight: '800', color: '#111827' },
-  priceLabel: { fontSize: 13, color: '#9CA3AF', marginTop: 2 },
-  scheduleBox: {
-    flexDirection: 'row',
+  screen: { flex: 1, backgroundColor: T.Colors.surface },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: T.Spacing.md },
+  errorText: { fontSize: T.FontSize.lg, color: T.Colors.textTertiary },
+  content: { padding: T.Spacing.lg, paddingBottom: 100 },
+
+  heroCard: {
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.xl,
+    padding: T.Spacing['2xl'],
     alignItems: 'center',
-    gap: 10,
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 10,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.cardMd,
   },
-  scheduleText: { fontSize: 13, fontWeight: '600', flex: 1 },
+  medicineIcon: {
+    width: 72, height: 72, borderRadius: T.Radius.xl,
+    backgroundColor: T.Colors.navyLight,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: T.Spacing.lg,
+  },
+  brand: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.black, color: T.Colors.textPrimary, textAlign: 'center' },
+  generic: { fontSize: T.FontSize.base, color: T.Colors.textSecondary, marginTop: 4, textAlign: 'center' },
+  form: { fontSize: T.FontSize.sm, color: T.Colors.textTertiary, marginTop: 6, textAlign: 'center' },
+  manufacturer: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary, marginTop: 4 },
+
+  priceBox: {
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.lg,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
+  },
+  priceRow: { flexDirection: 'row', alignItems: 'center', gap: T.Spacing.sm, marginBottom: 4 },
+  price: { fontSize: T.FontSize['3xl'], fontWeight: T.FontWeight.black, color: T.Colors.textPrimary },
+  mrp: { fontSize: T.FontSize.base, color: T.Colors.textTertiary, textDecorationLine: 'line-through' },
+  discountBadge: {
+    backgroundColor: T.Colors.emeraldLight,
+    paddingHorizontal: 8, paddingVertical: 3,
+    borderRadius: T.Radius.full,
+  },
+  discountText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.bold, color: T.Colors.emeraldDark },
+  priceLabel: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary },
+  inCartBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.full,
+    paddingHorizontal: T.Spacing.md, paddingVertical: 4,
+    alignSelf: 'flex-start',
+    marginTop: T.Spacing.sm,
+  },
+  inCartText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.semibold, color: T.Colors.navyMid },
+
+  infoBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: T.Spacing.md, borderRadius: T.Radius.md, marginBottom: 10,
+  },
+  infoBadgeText: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, flex: 1 },
+
   rxBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    padding: 12,
-    borderRadius: 10,
-    backgroundColor: '#FFFBEB',
-    marginBottom: 10,
+    flexDirection: 'row', alignItems: 'flex-start', gap: 10,
+    padding: T.Spacing.md, borderRadius: T.Radius.md,
+    backgroundColor: T.Colors.amberLight, marginBottom: 10,
   },
-  rxText: { fontSize: 13, color: '#D97706', flex: 1, lineHeight: 18 },
-  section: { marginTop: 20 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 12 },
+  rxText: { fontSize: T.FontSize.sm, color: '#D97706', flex: 1, lineHeight: 18 },
+
+  deliveryCard: {
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.lg,
+    gap: T.Spacing.md,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
+  },
+  deliveryRow: { flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md },
+  deliveryText: { fontSize: T.FontSize.sm, color: T.Colors.textSecondary, fontWeight: T.FontWeight.medium },
+
+  section: { marginTop: T.Spacing.md },
+  sectionTitle: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginBottom: T.Spacing.md },
   warningRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', marginBottom: 10 },
-  warningText: { fontSize: 14, color: '#374151', flex: 1, lineHeight: 20 },
+  warningText: { fontSize: T.FontSize.base, color: T.Colors.textSecondary, flex: 1, lineHeight: 20 },
+
   footer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    padding: T.Spacing.lg, backgroundColor: T.Colors.white,
+    borderTopWidth: 1, borderTopColor: T.Colors.border,
+    ...T.Shadow.cardMd,
   },
 });

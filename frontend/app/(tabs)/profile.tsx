@@ -14,6 +14,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '@/api/user';
 import { useAuthStore } from '@/store/auth';
+import { T } from '@/theme';
 import { MOCK_ADDRESSES } from '@/mock/data';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -30,14 +31,16 @@ interface MenuItemProps {
 function MenuItem({ icon, label, onPress, badge }: MenuItemProps) {
   return (
     <TouchableOpacity style={styles.menuItem} onPress={onPress} activeOpacity={0.7}>
-      <Ionicons name={icon as any} size={22} color="#0EA5E9" />
+      <View style={styles.menuIconWrap}>
+        <Ionicons name={icon as any} size={20} color={T.Colors.navyMid} />
+      </View>
       <Text style={styles.menuLabel}>{label}</Text>
       {badge ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>{badge}</Text>
         </View>
       ) : null}
-      <Ionicons name="chevron-forward" size={18} color="#D1D5DB" />
+      <Ionicons name="chevron-forward" size={18} color={T.Colors.border} />
     </TouchableOpacity>
   );
 }
@@ -69,7 +72,7 @@ export default function ProfileScreen() {
     enabled: !!principalId,
   });
 
-  const displayName = profile?.full_name ?? 'Aakash Singh';
+  const displayName = profile?.full_name ?? 'MedRush User';
   const displayPhone = principalId ?? '+91 98765 43210';
 
   const handleLogout = () => {
@@ -134,15 +137,15 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* ── Avatar + Name ── */}
-        <View style={styles.headerSection}>
+        {/* ── Hero header ── */}
+        <View style={styles.heroSection}>
           <AvatarInitials name={displayName} />
           <View style={styles.headerInfo}>
             <Text style={styles.name}>{displayName}</Text>
             <Text style={styles.phone}>{displayPhone}</Text>
           </View>
           <TouchableOpacity style={styles.editBtn} onPress={handleEditProfile}>
-            <Ionicons name="pencil-outline" size={16} color="#0EA5E9" />
+            <Ionicons name="pencil-outline" size={15} color={T.Colors.navyMid} />
             <Text style={styles.editBtnText}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -160,7 +163,7 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Ionicons name="location-outline" size={14} color="#0EA5E9" />
+            <Ionicons name="location-outline" size={14} color={T.Colors.navyMid} />
             <Text style={styles.statLabel}>Indiranagar</Text>
           </View>
         </View>
@@ -169,7 +172,9 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <View style={styles.walletRow}>
             <View style={styles.walletLeft}>
-              <Ionicons name="wallet-outline" size={22} color="#0EA5E9" />
+              <View style={styles.walletIcon}>
+                <Ionicons name="wallet-outline" size={20} color={T.Colors.navyMid} />
+              </View>
               <View>
                 <Text style={styles.walletTitle}>MedRush Wallet</Text>
                 <Text style={styles.walletBalance}>₹0.00</Text>
@@ -181,7 +186,9 @@ export default function ProfileScreen() {
           </View>
           <View style={styles.menuDivider} />
           <TouchableOpacity style={styles.plusRow} onPress={() => setPlusModalVisible(true)}>
-            <Ionicons name="flash-outline" size={22} color="#F59E0B" />
+            <View style={styles.plusIconWrap}>
+              <Ionicons name="flash-outline" size={20} color={T.Colors.amber} />
+            </View>
             <View style={styles.plusInfo}>
               <Text style={styles.plusTitle}>MedRush Plus</Text>
               <Text style={styles.plusSubtitle}>Not subscribed · ₹99/month</Text>
@@ -243,7 +250,7 @@ export default function ProfileScreen() {
 
         {/* ── Logout ── */}
         <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={20} color="#EF4444" />
+          <Ionicons name="log-out-outline" size={20} color={T.Colors.crimson} />
           <Text style={styles.logoutText}>Log out</Text>
         </TouchableOpacity>
 
@@ -265,7 +272,9 @@ export default function ProfileScreen() {
             <View style={styles.benefitsList}>
               {PLUS_BENEFITS.map((b) => (
                 <View key={b.text} style={styles.benefitItem}>
-                  <Ionicons name={b.icon as any} size={20} color="#0EA5E9" />
+                  <View style={styles.benefitIcon}>
+                    <Ionicons name={b.icon as any} size={18} color={T.Colors.navyMid} />
+                  </View>
                   <Text style={styles.benefitText}>{b.text}</Text>
                 </View>
               ))}
@@ -304,188 +313,196 @@ const PLUS_BENEFITS = [
 // ─── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F9FAFB' },
+  screen: { flex: 1, backgroundColor: T.Colors.surface },
   content: { paddingBottom: 40 },
 
-  // Header
-  headerSection: {
+  heroSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 16,
-    gap: 14,
+    paddingHorizontal: T.Spacing.lg,
+    paddingTop: T.Spacing.xl,
+    paddingBottom: T.Spacing.lg,
+    backgroundColor: T.Colors.white,
+    gap: T.Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: T.Colors.borderLight,
   },
   avatar: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#0EA5E9',
+    backgroundColor: T.Colors.navyMid,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  avatarText: { fontSize: 22, fontWeight: '700', color: '#fff', letterSpacing: 1 },
+  avatarText: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.bold, color: T.Colors.textInverse, letterSpacing: 1 },
   headerInfo: { flex: 1 },
-  name: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  phone: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  name: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  phone: { fontSize: T.FontSize.sm, color: T.Colors.textTertiary, marginTop: 2 },
   editBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 12,
+    backgroundColor: T.Colors.navyLight,
+    paddingHorizontal: T.Spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: T.Radius.full,
   },
-  editBtnText: { fontSize: 13, fontWeight: '600', color: '#0EA5E9' },
+  editBtnText: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, color: T.Colors.navyMid },
 
-  // Stats bar
   statsBar: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    marginHorizontal: 16,
-    borderRadius: 14,
-    paddingVertical: 14,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    backgroundColor: T.Colors.white,
+    marginHorizontal: T.Spacing.lg,
+    marginTop: T.Spacing.md,
+    borderRadius: T.Radius.lg,
+    paddingVertical: T.Spacing.md,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
   },
   statItem: {
     flex: 1,
     alignItems: 'center',
     gap: 2,
   },
-  statValue: { fontSize: 18, fontWeight: '800', color: '#0EA5E9' },
-  statLabel: { fontSize: 11, color: '#6B7280', fontWeight: '500' },
-  statDivider: { width: 1, backgroundColor: '#F3F4F6' },
+  statValue: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.black, color: T.Colors.navyMid },
+  statLabel: { fontSize: T.FontSize['2xs'], color: T.Colors.textTertiary, fontWeight: T.FontWeight.medium },
+  statDivider: { width: 1, backgroundColor: T.Colors.borderLight },
 
-  // Card
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    marginHorizontal: 16,
-    marginBottom: 12,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    marginHorizontal: T.Spacing.lg,
+    marginBottom: T.Spacing.md,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 2,
+    ...T.Shadow.card,
   },
 
-  // Wallet
   walletRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    gap: 14,
+    padding: T.Spacing.lg,
+    gap: T.Spacing.md,
   },
-  walletLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  walletTitle: { fontSize: 13, color: '#6B7280' },
-  walletBalance: { fontSize: 18, fontWeight: '800', color: '#111827', marginTop: 2 },
+  walletLeft: { flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md },
+  walletIcon: {
+    width: 40, height: 40, borderRadius: T.Radius.md,
+    backgroundColor: T.Colors.navyLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  walletTitle: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary },
+  walletBalance: { fontSize: T.FontSize.xl, fontWeight: T.FontWeight.black, color: T.Colors.textPrimary, marginTop: 2 },
   addMoneyBtn: {
-    backgroundColor: '#EFF6FF',
-    paddingHorizontal: 14,
+    backgroundColor: T.Colors.navyLight,
+    paddingHorizontal: T.Spacing.md,
     paddingVertical: 6,
-    borderRadius: 20,
+    borderRadius: T.Radius.full,
   },
-  addMoneyText: { fontSize: 13, fontWeight: '600', color: '#0EA5E9' },
-  menuDivider: { height: 1, backgroundColor: '#F3F4F6' },
+  addMoneyText: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, color: T.Colors.navyMid },
+  menuDivider: { height: 1, backgroundColor: T.Colors.borderLight },
 
-  // MedRush Plus row
   plusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 12,
+    padding: T.Spacing.lg,
+    gap: T.Spacing.md,
+  },
+  plusIconWrap: {
+    width: 40, height: 40, borderRadius: T.Radius.md,
+    backgroundColor: T.Colors.amberLight,
+    justifyContent: 'center', alignItems: 'center',
   },
   plusInfo: { flex: 1 },
-  plusTitle: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  plusSubtitle: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  plusTitle: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  plusSubtitle: { fontSize: T.FontSize.xs, color: T.Colors.textTertiary, marginTop: 2 },
   plusBadge: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: T.Colors.amberLight,
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 20,
+    borderRadius: T.Radius.full,
   },
-  plusBadgeText: { fontSize: 12, fontWeight: '700', color: '#D97706' },
+  plusBadgeText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.bold, color: '#D97706' },
 
-  // Menu items
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
-    gap: 14,
+    padding: T.Spacing.lg,
+    gap: T.Spacing.md,
     borderBottomWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: T.Colors.borderLight,
   },
-  menuLabel: { flex: 1, fontSize: 15, color: '#374151' },
+  menuIconWrap: {
+    width: 36, height: 36, borderRadius: T.Radius.sm,
+    backgroundColor: T.Colors.navyLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  menuLabel: { flex: 1, fontSize: T.FontSize.md, color: T.Colors.textSecondary },
   badge: {
-    backgroundColor: '#0EA5E9',
-    borderRadius: 10,
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.full,
     paddingHorizontal: 7,
     paddingVertical: 2,
   },
-  badgeText: { fontSize: 11, fontWeight: '700', color: '#fff' },
+  badgeText: { fontSize: T.FontSize['2xs'], fontWeight: T.FontWeight.black, color: T.Colors.textInverse },
 
-  // Logout
   logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     marginTop: 4,
-    marginHorizontal: 16,
-    padding: 16,
-    backgroundColor: '#FEF2F2',
-    borderRadius: 14,
+    marginHorizontal: T.Spacing.lg,
+    padding: T.Spacing.lg,
+    backgroundColor: T.Colors.crimsonLight,
+    borderRadius: T.Radius.lg,
     justifyContent: 'center',
   },
-  logoutText: { fontSize: 15, fontWeight: '600', color: '#EF4444' },
+  logoutText: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.semibold, color: T.Colors.crimson },
   version: {
     textAlign: 'center',
-    fontSize: 12,
-    color: '#D1D5DB',
-    marginTop: 20,
+    fontSize: T.FontSize.xs,
+    color: T.Colors.border,
+    marginTop: T.Spacing.xl,
   },
 
-  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    padding: 24,
+    backgroundColor: T.Colors.white,
+    borderTopLeftRadius: T.Radius['2xl'],
+    borderTopRightRadius: T.Radius['2xl'],
+    padding: T.Spacing['2xl'],
     paddingBottom: 40,
   },
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: T.Colors.border,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: 20,
+    marginBottom: T.Spacing.xl,
   },
-  modalTitle: { fontSize: 22, fontWeight: '800', color: '#111827', textAlign: 'center' },
-  modalSubtitle: { fontSize: 14, color: '#6B7280', textAlign: 'center', marginTop: 4, marginBottom: 24 },
-  benefitsList: { gap: 16, marginBottom: 28 },
-  benefitItem: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  benefitText: { fontSize: 15, color: '#374151' },
+  modalTitle: { fontSize: T.FontSize['2xl'], fontWeight: T.FontWeight.black, color: T.Colors.textPrimary, textAlign: 'center' },
+  modalSubtitle: { fontSize: T.FontSize.base, color: T.Colors.textTertiary, textAlign: 'center', marginTop: 4, marginBottom: T.Spacing['2xl'] },
+  benefitsList: { gap: T.Spacing.md, marginBottom: T.Spacing['3xl'] },
+  benefitItem: { flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md },
+  benefitIcon: {
+    width: 36, height: 36, borderRadius: T.Radius.sm,
+    backgroundColor: T.Colors.navyLight,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  benefitText: { fontSize: T.FontSize.md, color: T.Colors.textSecondary, flex: 1 },
   trialBtn: {
-    backgroundColor: '#0EA5E9',
-    borderRadius: 14,
+    backgroundColor: T.Colors.navyMid,
+    borderRadius: T.Radius.lg,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: T.Spacing.md,
   },
-  trialBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  trialBtnText: { color: T.Colors.textInverse, fontWeight: T.FontWeight.bold, fontSize: T.FontSize.lg },
   modalClose: { alignItems: 'center', paddingVertical: 8 },
-  modalCloseText: { fontSize: 14, color: '#9CA3AF' },
+  modalCloseText: { fontSize: T.FontSize.base, color: T.Colors.textTertiary },
 });
