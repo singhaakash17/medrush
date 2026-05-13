@@ -10,6 +10,10 @@ class ProfileOut(BaseModel):
     gender: str | None
     profile_photo_url: str | None
     preferred_language: str
+    phone: str | None = None
+    city: str | None = None
+    order_count: int = 0
+    rx_count: int = 0
     created_at: datetime
     updated_at: datetime
 

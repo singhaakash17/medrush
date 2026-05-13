@@ -1,16 +1,37 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { queryClient } from '@/lib/queryClient';
 import { useAuthStore } from '@/store/auth';
 
 export default function RootLayout() {
-  const hydrate = useAuthStore((s) => s.hydrate);
+  const { hydrate, isAuthenticated, isLoading } = useAuthStore();
+  const segments = useSegments();
+  const router = useRouter();
 
   useEffect(() => {
     hydrate();
   }, []);
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to the login page if not authenticated
+      router.replace('/(auth)/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Redirect based on role
+      const role = useAuthStore.getState().role;
+      if (role === 'rider') {
+        router.replace('/rider/tasks');
+      } else {
+        router.replace('/(tabs)');
+      }
+    }
+  }, [isAuthenticated, segments, isLoading]);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>

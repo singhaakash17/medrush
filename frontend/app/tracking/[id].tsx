@@ -15,6 +15,7 @@ import { useCartStore } from '@/store/cart';
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
 
+// Status steps for the tracking display
 const STATUS_STEPS = [
   { key: 'pending',    label: 'Order Placed',       icon: 'receipt-outline' as const },
   { key: 'confirmed',  label: 'Pharmacy Confirmed',  icon: 'storefront-outline' as const },
@@ -58,20 +59,6 @@ function StatusStepper({ currentStatus }: { currentStatus: string }) {
   );
 }
 
-// Mock order simulation for checkout-generated orders not yet in DB
-const MOCK_STATUS_SEQUENCE = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'] as const;
-const MOCK_STEP_DELAY_MS = 8_000; // advance every 8 s for demo
-
-function useMockOrder(id: string) {
-  const [stepIdx, setStepIdx] = useState(0);
-  useEffect(() => {
-    if (stepIdx >= MOCK_STATUS_SEQUENCE.length - 1) return;
-    const t = setTimeout(() => setStepIdx((s) => s + 1), MOCK_STEP_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [stepIdx]);
-  return MOCK_STATUS_SEQUENCE[stepIdx];
-}
-
 export default function TrackingScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -79,21 +66,17 @@ export default function TrackingScreen() {
   const wsRef = useRef<WebSocket | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lon: number } | null>(null);
 
-  // Orders created at checkout use the "MR-" prefix and don't exist in the DB yet
-  const isMockOrder = typeof id === 'string' && id.startsWith('MR-');
-  const mockStatus = useMockOrder(id ?? '');
-
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ['order', id],
     queryFn: () => ordersApi.get(id!).catch(() => null as any),
-    enabled: !!id && !isMockOrder,
+    enabled: !!id,
     refetchInterval: 30_000,
   });
 
   const { data: items } = useQuery<OrderItem[]>({
     queryKey: ['order-items', id],
     queryFn: () => ordersApi.getItems(id!).catch(() => []),
-    enabled: !!id && !isMockOrder,
+    enabled: !!id,
   });
 
   const { data: assignment } = useQuery<Assignment | null>({
@@ -102,9 +85,9 @@ export default function TrackingScreen() {
     enabled: !!order && ['dispatched', 'delivered'].includes(order.status),
   });
 
-  // Real-time WebSocket (only for real DB orders)
+  // Real-time WebSocket
   useEffect(() => {
-    if (!id || isMockOrder) return;
+    if (!id) return;
     const ws = new WebSocket(`${WS_BASE}/ws/orders/${id}`);
     wsRef.current = ws;
 
@@ -131,81 +114,8 @@ export default function TrackingScreen() {
       clearInterval(pingInterval);
       ws.close();
     };
-  }, [id, isMockOrder]);
+  }, [id]);
 
-  // For mock orders render a fully simulated screen
-  if (isMockOrder) {
-    const isActive = mockStatus !== 'delivered';
-    return (
-      <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#0C4A6E" />
-          </TouchableOpacity>
-          <View style={styles.headerText}>
-            <Text style={styles.title}>Track Order #{id}</Text>
-            <Text style={styles.subtitle}>
-              {mockStatus === 'delivered' ? '✓ Delivered' : 'ETA: ~15 min'}
-            </Text>
-          </View>
-        </View>
-
-        {mockStatus === 'dispatched' && (
-          <View style={styles.liveCard}>
-            <View style={styles.livePulse} />
-            <Text style={styles.liveText}>Rider location updating live</Text>
-            <Text style={styles.liveCoords}>12.9711, 77.6383</Text>
-          </View>
-        )}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Order Status</Text>
-          <StatusStepper currentStatus={mockStatus} />
-        </View>
-
-        {mockStatus === 'dispatched' && (
-          <View style={styles.riderCard}>
-            <View style={styles.riderAvatar}>
-              <Ionicons name="bicycle" size={24} color="#0EA5E9" />
-            </View>
-            <View style={styles.riderInfo}>
-              <Text style={styles.riderName}>Ravi Kumar is on the way</Text>
-              <Text style={styles.riderEta}>~8 min to reach you</Text>
-            </View>
-            <View style={styles.liveDot} />
-          </View>
-        )}
-
-        {mockStatus === 'dispatched' && (
-          <View style={styles.otpCard}>
-            <Ionicons name="key-outline" size={22} color="#F59E0B" />
-            <View style={styles.otpInfo}>
-              <Text style={styles.otpTitle}>Delivery OTP: 4821</Text>
-              <Text style={styles.otpSub}>Share this OTP with the rider to confirm receipt</Text>
-            </View>
-          </View>
-        )}
-
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Delivery Address</Text>
-          <View style={styles.addressRow}>
-            <Ionicons name="location-outline" size={18} color="#0EA5E9" />
-            <View>
-              <Text style={styles.addressLine}>2nd Floor, 12th Main, Indiranagar</Text>
-              <Text style={styles.addressSub}>Bengaluru, 560008</Text>
-            </View>
-          </View>
-        </View>
-
-        {mockStatus === 'delivered' && (
-          <TouchableOpacity style={styles.rateBtn}>
-            <Ionicons name="star-outline" size={18} color="#F59E0B" />
-            <Text style={styles.rateBtnText}>Rate this delivery</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    );
-  }
 
   if (isLoading || !order) {
     return <View style={styles.loading}><ActivityIndicator size="large" color="#0EA5E9" /></View>;

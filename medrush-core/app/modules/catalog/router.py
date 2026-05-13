@@ -7,6 +7,14 @@ from app.modules.catalog import service
 router = APIRouter()
 
 
+@router.get("/medicines/featured", response_model=list[MedicineOut])
+async def get_featured_medicines(
+    session: AsyncSession = Depends(get_async_session),
+) -> list[MedicineOut]:
+    """Returns up to 10 medicines marked as featured (or top-10 by name as fallback)."""
+    return await service.get_featured(session)
+
+
 @router.get("/medicines", response_model=list[MedicineOut])
 async def search_medicines(
     q: str = Query(..., min_length=2, description="Brand name, generic name, or salt"),

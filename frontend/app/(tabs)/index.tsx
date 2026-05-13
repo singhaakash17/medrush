@@ -6,12 +6,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
-  FlatList,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi } from '@/api/orders';
+import { catalogApi } from '@/api/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { OrderCard } from '@/components/OrderCard';
@@ -48,9 +48,6 @@ const NEARBY_PHARMACIES = [...PHARMACIES]
   .sort((a, b) => a.distance_m - b.distance_m)
   .slice(0, 4);
 
-// 6 popular medicines for the home screen
-const POPULAR_MEDICINE_IDS = ['med_001', 'med_007', 'med_013', 'med_028', 'med_032', 'med_019'];
-const POPULAR_MEDICINES = MEDICINES.filter((m) => POPULAR_MEDICINE_IDS.includes(m.id));
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -171,26 +168,39 @@ export default function HomeScreen() {
   const router = useRouter();
   const principalId = useAuthStore((s) => s.principalId);
 
-  const {
-    data: orders,
-    isLoading,
-    refetch,
-    isRefetching,
-  } = useQuery({
-    queryKey: ['orders'],
-    queryFn: ordersApi.list,
-    enabled: !!principalId,
-    refetchInterval: 30_000,
-    // Fall back gracefully — real API may not be available
-    retry: 1,
-  });
+  // MOCK DATA REVERSION
+  const activeOrders = [
+    {
+      id: 'ord_active_01',
+      short_code: 'MR-9821',
+      status: 'packed',
+      total_paise: 124000,
+      pharmacy_name: 'Apollo Pharmacy Indiranagar',
+      items_summary: 'Dolo 650, Augmentin 625',
+      date: '2026-05-13',
+      time: '10:15 AM',
+      sla_target_at: new Date(Date.now() + 12 * 60000).toISOString(),
+    }
+  ];
 
-  const activeOrders =
-    orders?.filter((o) =>
-      ['pending', 'confirmed', 'packed', 'dispatched'].includes(o.status),
-    ) ?? [];
+  const recentOrders = [
+    {
+      id: 'ord_recent_01',
+      short_code: 'MR-7742',
+      status: 'delivered',
+      total_paise: 85000,
+      pharmacy_name: 'MedPlus CMH Road',
+      items_summary: 'Crocin 650, Digene Gel',
+      date: '2026-05-12',
+      time: '04:30 PM',
+      sla_target_at: new Date(Date.now() - 120 * 60000).toISOString(),
+    }
+  ];
 
-  const recentOrders = orders?.filter((o) => o.status === 'delivered').slice(0, 3) ?? [];
+  const popularMedicines = MEDICINES.slice(0, 8);
+  const isLoading = false;
+  const isRefetching = false;
+  const refetch = () => {};
 
   return (
     <ScrollView
@@ -309,23 +319,25 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Popular Medicines ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular Medicines</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-            <Text style={styles.seeAllText}>See all</Text>
-          </TouchableOpacity>
+      {popularMedicines.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Medicines</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {popularMedicines.map((medicine) => (
+              <MedicineCard key={medicine.id} medicine={medicine as unknown as MockMedicine} />
+            ))}
+          </ScrollView>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {POPULAR_MEDICINES.map((medicine) => (
-            <MedicineCard key={medicine.id} medicine={medicine} />
-          ))}
-        </ScrollView>
-      </View>
+      )}
 
       {/* ── Rx Vault CTA ── */}
       <TouchableOpacity style={styles.rxVault} onPress={() => router.push('/rx/vault' as any)}>
@@ -360,7 +372,7 @@ export default function HomeScreen() {
       </TouchableOpacity>
 
       {/* ── Empty state (only when API returned nothing and not loading) ── */}
-      {!isLoading && (!orders || orders.length === 0) && (
+      {!isLoading && activeOrders.length === 0 && recentOrders.length === 0 && (
         <View style={styles.empty}>
           <Ionicons name="bag-outline" size={64} color="#E5E7EB" />
           <Text style={styles.emptyTitle}>Your first order awaits</Text>

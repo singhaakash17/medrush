@@ -14,4 +14,8 @@ export const catalogApi = {
     const { data } = await apiClient.get(`/catalog/medicines/${id}/warnings`);
     return data;
   },
+  getFeatured: async (): Promise<Medicine[]> => {
+    const { data } = await apiClient.get('/catalog/medicines/featured');
+    return data;
+  },
 };

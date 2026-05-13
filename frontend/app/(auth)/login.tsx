@@ -6,6 +6,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Input } from '@/components/ui/Input';
 import { Button } from '@/components/ui/Button';
+import { authApi } from '@/api/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -19,15 +20,13 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
-    try {
-      // In production, POST /api/v1/identity/otp/send
-      // For now navigate directly to verify
-      router.push({ pathname: '/(auth)/verify', params: { phone: `+91${clean}` } });
-    } catch {
-      Alert.alert('Error', 'Could not send OTP. Please try again.');
-    } finally {
+    const phone_e164 = `+91${clean}`;
+    // MOCK DATA REVERSION
+    setLoading(true);
+    setTimeout(() => {
       setLoading(false);
-    }
+      router.push({ pathname: '/(auth)/verify', params: { phone: phone_e164 } });
+    }, 800);
   };
 
   return (

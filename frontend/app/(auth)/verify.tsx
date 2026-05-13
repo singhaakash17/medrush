@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TextInput,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, TouchableOpacity,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Button } from '@/components/ui/Button';
 import { useAuthStore } from '@/store/auth';
+import { authApi } from '@/api/auth';
 
 export default function VerifyScreen() {
   const { phone } = useLocalSearchParams<{ phone: string }>();
@@ -13,6 +14,7 @@ export default function VerifyScreen() {
   const login = useAuthStore((s) => s.login);
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const inputRef = useRef<TextInput>(null);
 
   const handleVerify = async () => {
@@ -20,17 +22,26 @@ export default function VerifyScreen() {
       Alert.alert('Invalid OTP', 'Enter the 6-digit OTP sent to your phone.');
       return;
     }
+    // MOCK DATA REVERSION
     setLoading(true);
-    try {
-      // Use seeded test principal for the demo phone number so profile & data load correctly
-      const isTestPhone = phone === '+919876543210';
-      const mockPrincipalId = isTestPhone ? 'cust_test_01' : `principal_${phone?.replace('+91', '')}`;
-      await login(mockPrincipalId, 'customer');
-      router.replace('/(tabs)/');
-    } catch {
-      Alert.alert('Error', 'OTP verification failed. Please try again.');
-    } finally {
+    setTimeout(async () => {
       setLoading(false);
+      await login(phone ?? 'mock_principal', 'customer');
+      router.replace('/(tabs)');
+    }, 800);
+  };
+
+  const handleResend = async () => {
+    setResending(true);
+    try {
+      await authApi.sendOtp(phone);
+      Alert.alert('OTP Resent', `A new OTP has been sent to ${phone}.`);
+      setOtp('');
+    } catch (err: any) {
+      const msg = err?.response?.data?.error?.message ?? 'Could not resend OTP. Please try again.';
+      Alert.alert('Error', msg);
+    } finally {
+      setResending(false);
     }
   };
 
@@ -55,7 +66,11 @@ export default function VerifyScreen() {
 
         <Button title="Verify & Continue" onPress={handleVerify} loading={loading} style={{ marginTop: 24 }} />
 
-        <Text style={styles.resend}>Didn't receive it? Resend OTP</Text>
+        <TouchableOpacity onPress={handleResend} disabled={resending} style={{ marginTop: 16 }}>
+          <Text style={styles.resend}>
+            {resending ? 'Resending…' : "Didn't receive it? Resend OTP"}
+          </Text>
+        </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
   );
@@ -76,5 +91,5 @@ const styles = StyleSheet.create({
     color: '#111827',
     backgroundColor: '#F0F9FF',
   },
-  resend: { fontSize: 14, color: '#0EA5E9', textAlign: 'center', marginTop: 24, fontWeight: '600' },
+  resend: { fontSize: 14, color: '#0EA5E9', textAlign: 'center', fontWeight: '600' },
 });

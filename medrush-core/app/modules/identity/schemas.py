@@ -2,6 +2,24 @@ from pydantic import BaseModel
 from datetime import datetime
 
 
+class OtpSendRequest(BaseModel):
+    phone_e164: str  # e.g. "+919876543210"
+
+
+class OtpSendResponse(BaseModel):
+    message: str
+
+
+class OtpVerifyRequest(BaseModel):
+    phone_e164: str
+    otp: str
+
+
+class OtpVerifyResponse(BaseModel):
+    principal_id: str
+    role: str
+
+
 class PrincipalOut(BaseModel):
     id: str
     phone_e164: str

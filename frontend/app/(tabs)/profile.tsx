@@ -8,13 +8,14 @@ import {
   Alert,
   Modal,
   Pressable,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '@/api/user';
 import { useAuthStore } from '@/store/auth';
-import { MOCK_ADDRESSES } from '@/mock/data';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -63,20 +64,50 @@ export default function ProfileScreen() {
   const principalId = useAuthStore((s) => s.principalId);
   const [plusModalVisible, setPlusModalVisible] = useState(false);
 
-  const { data: profile } = useQuery({
-    queryKey: ['profile'],
-    queryFn: userApi.getProfile,
-    enabled: !!principalId,
-  });
+  // MOCK DATA REVERSION
+  const profile = {
+    full_name: 'Akash Singh',
+    phone: '+919876543210',
+    email: 'akash@example.com',
+    order_count: 12,
+    rx_count: 5,
+    city: 'Bengaluru',
+  };
+  const addresses = [
+    {
+      id: 'addr_01',
+      label: 'Home',
+      line1: '123, 4th Main, Indiranagar',
+      city: 'Bengaluru',
+      pincode: '560038',
+      is_default: true,
+      area: 'Indiranagar',
+    }
+  ];
+  const profileLoading = false;
 
-  const displayName = profile?.full_name ?? 'Aakash Singh';
-  const displayPhone = principalId ?? '+91 98765 43210';
+  const displayName = profile?.full_name ?? 'My Account';
+  // Show phone from principalId (it IS the phone stored on login)
+  const displayPhone = profile?.phone ?? principalId ?? '';
 
   const handleLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: logout },
-    ]);
+    const performLogout = async () => {
+      await logout();
+      // On web, the state change in _layout might take a tick, 
+      // so we explicitly push to login for immediate feedback.
+      router.replace('/(auth)/login');
+    };
+
+    if (Platform.OS === 'web') {
+      if (confirm('Are you sure you want to log out?')) {
+        performLogout();
+      }
+    } else {
+      Alert.alert('Log out', 'Are you sure you want to log out?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Log out', style: 'destructive', onPress: performLogout },
+      ]);
+    }
   };
 
   const handleEditProfile = () => {
@@ -88,10 +119,16 @@ export default function ProfileScreen() {
   };
 
   const handleSavedAddresses = () => {
-    const addressLines = MOCK_ADDRESSES.map(
-      (a, i) =>
-        `${i + 1}. ${a.label}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}, ${a.area}, ${a.city} - ${a.pincode}`,
-    ).join('\n\n');
+    if (!addresses || addresses.length === 0) {
+      Alert.alert('Saved Addresses', 'No saved addresses yet.', [{ text: 'Close' }]);
+      return;
+    }
+    const addressLines = addresses
+      .map(
+        (a, i) =>
+          `${i + 1}. ${a.label ?? 'Address'}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}${a.city ? ', ' + a.city : ''}${a.pincode ? ' - ' + a.pincode : ''}`,
+      )
+      .join('\n\n');
     Alert.alert('Saved Addresses', addressLines, [{ text: 'Close' }]);
   };
 
@@ -127,6 +164,14 @@ export default function ProfileScreen() {
     );
   };
 
+  if (profileLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F9FAFB' }}>
+        <ActivityIndicator size="large" color="#0EA5E9" />
+      </View>
+    );
+  }
+
   return (
     <>
       <ScrollView
@@ -150,18 +195,20 @@ export default function ProfileScreen() {
         {/* ── Stats bar ── */}
         <View style={styles.statsBar}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{profile?.order_count ?? '—'}</Text>
             <Text style={styles.statLabel}>Orders</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>3</Text>
+            <Text style={styles.statValue}>{profile?.rx_count ?? '—'}</Text>
             <Text style={styles.statLabel}>Rx Saved</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Ionicons name="location-outline" size={14} color="#0EA5E9" />
-            <Text style={styles.statLabel}>Indiranagar</Text>
+            <Text style={styles.statLabel}>
+              {addresses?.[0]?.area ?? profile?.city ?? 'Set location'}
+            </Text>
           </View>
         </View>
 

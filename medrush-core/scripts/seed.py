@@ -12,6 +12,9 @@ import random
 import sys
 import os
 from datetime import date, datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # ---------------------------------------------------------------------------
 # Make sure the project root is importable so we can reuse app models.
@@ -22,7 +25,9 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 # ---- Async engine (asyncpg) ------------------------------------------------
-DATABASE_URL = "postgresql+asyncpg://medrush:medrush_dev@localhost:5433/medrush_core"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://medrush:medrush_dev@localhost:5433/medrush_core")
+if not DATABASE_URL.startswith("postgresql+asyncpg://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
 engine = create_async_engine(DATABASE_URL, pool_pre_ping=True)
 AsyncSessionLocal = async_sessionmaker(bind=engine, class_=AsyncSession, expire_on_commit=False)
@@ -65,7 +70,8 @@ async def run() -> None:
         # -------------------------------------------------------------------
         # 1. Schemas
         # -------------------------------------------------------------------
-        print("Creating schemas…")
+        print("Creating schemas and extensions…")
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
         schemas = [
             "identity_m", "user_m", "catalog_m", "pharmacy_m",
             "geo_m", "inventory_m", "logistics_m", "order_m",
@@ -74,7 +80,7 @@ async def run() -> None:
         ]
         for s in schemas:
             await conn.execute(text(f"CREATE SCHEMA IF NOT EXISTS {s}"))
-        print("  Schemas OK")
+        print("  Schemas & Extensions OK")
 
     # -------------------------------------------------------------------
     # 2. Tables

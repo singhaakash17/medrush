@@ -15,6 +15,10 @@ export interface Profile {
   gender: string | null;
   profile_photo_url: string | null;
   preferred_language: string;
+  phone?: string | null;
+  city?: string | null;
+  order_count?: number;
+  rx_count?: number;
 }
 
 export interface Address {

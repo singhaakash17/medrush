@@ -10,11 +10,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi } from '@/api/orders';
-import { MOCK_ORDERS, type MockOrder } from '@/mock/data';
+import type { Order } from '@/types';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type OrderStatus = MockOrder['status'];
+type OrderStatus = Order['status'];
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -60,20 +60,21 @@ function formatPrice(paise: number): string {
 
 // ─── Order Card ────────────────────────────────────────────────────────────────
 
-function OrderCard({ order }: { order: MockOrder }) {
-  const config = STATUS_CONFIG[order.status];
+function OrderCard({ order }: { order: Order }) {
+  const status = (order.status ?? 'pending') as OrderStatus;
+  const config = STATUS_CONFIG[status] ?? STATUS_CONFIG.pending;
+  const shortCode = order.short_code ?? order.id?.slice(0, 12).toUpperCase();
+  const dateStr = order.created_at
+    ? new Date(order.created_at).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
 
   const handleReorder = () => {
     Alert.alert(
       'Reorder',
-      `Adding items from order ${order.short_code} to your cart.\n\n${order.items_summary}`,
+      `Reorder items from ${shortCode}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Add to Cart',
-          onPress: () =>
-            Alert.alert('Added!', 'Items have been added to your cart.'),
-        },
+        { text: 'Add to Cart', onPress: () => Alert.alert('Added!', 'Items have been added to your cart.') },
       ],
     );
   };
@@ -81,7 +82,7 @@ function OrderCard({ order }: { order: MockOrder }) {
   const handleTrack = () => {
     Alert.alert(
       'Track Order',
-      `Order ${order.short_code} is currently ${config.label.toLowerCase()}.\n\nEstimated arrival: ${order.time}`,
+      `Order ${shortCode} is currently ${config.label.toLowerCase()}.`,
       [{ text: 'OK' }],
     );
   };
@@ -91,10 +92,8 @@ function OrderCard({ order }: { order: MockOrder }) {
       {/* Card header */}
       <View style={styles.cardHeader}>
         <View>
-          <Text style={styles.orderId}>{order.short_code}</Text>
-          <Text style={styles.orderDate}>
-            {order.date} · {order.time}
-          </Text>
+          <Text style={styles.orderId}>{shortCode}</Text>
+          <Text style={styles.orderDate}>{dateStr}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
           <Ionicons name={config.icon as any} size={13} color={config.text} />
@@ -108,21 +107,21 @@ function OrderCard({ order }: { order: MockOrder }) {
       {/* Pharmacy */}
       <View style={styles.pharmacyRow}>
         <Ionicons name="storefront-outline" size={16} color="#6B7280" />
-        <Text style={styles.pharmacyName}>{order.pharmacy_name}</Text>
+        <Text style={styles.pharmacyName}>{order.pharmacy_name ?? 'Pharmacy'}</Text>
       </View>
 
       {/* Items */}
       <View style={styles.itemsRow}>
         <Ionicons name="medical-outline" size={16} color="#6B7280" />
         <Text style={styles.itemsSummary} numberOfLines={2}>
-          {order.items_summary}
+          {order.items_summary ?? `${order.item_count ?? ''} item(s)`}
         </Text>
       </View>
 
       {/* Footer */}
       <View style={styles.cardFooter}>
         <Text style={styles.totalLabel}>
-          Total: <Text style={styles.totalAmount}>{formatPrice(order.total_paise)}</Text>
+          Total: <Text style={styles.totalAmount}>₹{((order.total_paise ?? 0) / 100).toFixed(2)}</Text>
         </Text>
         <View style={styles.footerActions}>
           {order.status === 'delivered' ? (
@@ -145,20 +144,37 @@ function OrderCard({ order }: { order: MockOrder }) {
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function OrdersScreen() {
-  // Try real API first; fall back to mock data on error
-  const { data: apiOrders, isError } = useQuery({
-    queryKey: ['orders'],
-    queryFn: ordersApi.list,
-    retry: 1,
-  });
-
-  // Build display list:
-  // - Use API data if available and non-empty
-  // - Otherwise show MOCK_ORDERS so the screen is never blank in dev
-  const displayOrders: MockOrder[] =
-    !isError && apiOrders && apiOrders.length > 0
-      ? (apiOrders as unknown as MockOrder[])
-      : MOCK_ORDERS;
+  // MOCK DATA REVERSION
+  const displayOrders: Order[] = [
+    {
+      id: 'ord_mock_01',
+      short_code: 'MR-9821',
+      status: 'packed',
+      total_paise: 124000,
+      pharmacy_name: 'Apollo Pharmacy Indiranagar',
+      items_summary: 'Dolo 650, Augmentin 625',
+      created_at: new Date().toISOString(),
+    },
+    {
+      id: 'ord_mock_02',
+      short_code: 'MR-7742',
+      status: 'delivered',
+      total_paise: 85000,
+      pharmacy_name: 'MedPlus CMH Road',
+      items_summary: 'Crocin 650, Digene Gel',
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+    {
+      id: 'ord_mock_03',
+      short_code: 'MR-4410',
+      status: 'delivered',
+      total_paise: 42000,
+      pharmacy_name: 'Wellness Forever',
+      items_summary: 'Pan 40, ORS Electral',
+      created_at: new Date(Date.now() - 172800000).toISOString(),
+    }
+  ];
+  const isLoading = false;
 
   const ListEmpty = () => (
     <View style={styles.empty}>
@@ -178,7 +194,7 @@ export default function OrdersScreen() {
   );
 
   return (
-    <FlatList<MockOrder>
+    <FlatList<Order>
       data={displayOrders}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <OrderCard order={item} />}
@@ -187,7 +203,7 @@ export default function OrdersScreen() {
         displayOrders.length === 0 && styles.listEmpty,
       ]}
       ListHeaderComponent={displayOrders.length > 0 ? ListHeader : null}
-      ListEmptyComponent={ListEmpty}
+      ListEmptyComponent={isLoading ? null : ListEmpty}
       showsVerticalScrollIndicator={false}
     />
   );

@@ -4,6 +4,22 @@ from app.modules.catalog.models import Medicine, MedicineWarning, Salt, Medicine
 from app.modules.catalog.schemas import MedicineOut, MedicineWarningOut, SubstituteOut
 
 
+async def get_featured_medicines(session: AsyncSession, limit: int = 10) -> list[MedicineOut]:
+    """Returns featured medicines: active, non-discontinued, ordered by mrp_paise desc as popularity proxy."""
+    stmt = (
+        select(Medicine)
+        .where(
+            Medicine.is_active == True,  # noqa: E712
+            Medicine.is_discontinued == False,  # noqa: E712
+        )
+        .order_by(Medicine.mrp_paise.desc())
+        .limit(limit)
+    )
+    result = await session.execute(stmt)
+    return [MedicineOut.model_validate(row) for row in result.scalars()]
+
+
+
 async def get_medicine(session: AsyncSession, medicine_id: str) -> MedicineOut | None:
     result = await session.execute(
         select(Medicine).where(Medicine.id == medicine_id, Medicine.is_active == True)  # noqa: E712
