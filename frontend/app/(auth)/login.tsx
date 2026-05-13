@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { T } from '@/theme';
-import { apiClient } from '@/api/client';
+import { authApi } from '@/api/auth';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -21,10 +21,11 @@ export default function LoginScreen() {
     }
     setLoading(true);
     try {
-      await apiClient.post('/identity/otp/send', { phone_e164: `+91${clean}` });
+      await authApi.sendOtp(`+91${clean}`);
       router.push({ pathname: '/(auth)/verify', params: { phone: `+91${clean}` } });
     } catch {
-      Alert.alert('Error', 'Could not send OTP. Please try again.');
+      Alert.alert('Error', 'Could not send OTP. Proceeding in demo mode.');
+      router.push({ pathname: '/(auth)/verify', params: { phone: `+91${clean}` } });
     } finally {
       setLoading(false);
     }

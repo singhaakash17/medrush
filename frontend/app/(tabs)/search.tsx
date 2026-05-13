@@ -11,7 +11,7 @@ import { geoApi } from '@/api/geo';
 import { MedicineCard } from '@/components/MedicineCard';
 import { NearbyPharmacyCard } from '@/components/NearbyPharmacyCard';
 import { T } from '@/theme';
-import * as Location from 'expo-location';
+import { Platform } from 'react-native';
 
 type Tab = 'medicines' | 'pharmacies';
 
@@ -25,10 +25,16 @@ export default function SearchScreen() {
   const BENGALURU_DEFAULT = { lat: 12.9784, lon: 77.6408 };
 
   React.useEffect(() => {
+    // Always set Bengaluru default first
     setUserLat(BENGALURU_DEFAULT.lat);
     setUserLon(BENGALURU_DEFAULT.lon);
+
+    // expo-location is native-only; skip GPS on web
+    if (Platform.OS === 'web') return;
+
     (async () => {
       try {
+        const Location = await import('expo-location');
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === 'granted') {
           const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });

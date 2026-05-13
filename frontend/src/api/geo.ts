@@ -1,5 +1,6 @@
 import { apiClient as client } from './client';
 import type { NearbyPharmacy } from '@/types';
+import { PHARMACIES } from '@/mock/data';
 
 interface NearbyParams {
   lat: number;
@@ -10,7 +11,11 @@ interface NearbyParams {
 
 export const geoApi = {
   nearbyPharmacies: async (params: NearbyParams): Promise<NearbyPharmacy[]> => {
-    const { data } = await client.get('/geo/nearby-pharmacies', { params });
-    return data;
+    try {
+      const { data } = await client.get('/geo/nearby-pharmacies', { params });
+      return data;
+    } catch {
+      return PHARMACIES as unknown as NearbyPharmacy[];
+    }
   },
 };

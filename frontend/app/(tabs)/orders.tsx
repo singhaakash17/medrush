@@ -6,23 +6,22 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi } from '@/api/orders';
+import { useRouter } from 'expo-router';
 import { T } from '@/theme';
-import { MOCK_ORDERS, type MockOrder } from '@/mock/data';
+import type { Order } from '@/types';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type OrderStatus = MockOrder['status'];
+type OrderStatus = 'delivered' | 'in_transit' | 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'cancelled' | string;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  OrderStatus,
-  { label: string; bg: string; text: string; icon: string }
-> = {
+const STATUS_CONFIG: Record<string, { label: string; bg: string; text: string; icon: string }> = {
   delivered: {
     label: 'Delivered',
     bg: T.Colors.emeraldLight,
@@ -31,6 +30,12 @@ const STATUS_CONFIG: Record<
   },
   in_transit: {
     label: 'In Transit',
+    bg: T.Colors.navyLight,
+    text: T.Colors.navyMid,
+    icon: 'bicycle',
+  },
+  dispatched: {
+    label: 'Dispatched',
     bg: T.Colors.navyLight,
     text: T.Colors.navyMid,
     icon: 'bicycle',
@@ -53,39 +58,54 @@ const STATUS_CONFIG: Record<
     text: '#166534',
     icon: 'cube',
   },
+  cancelled: {
+    label: 'Cancelled',
+    bg: T.Colors.crimsonLight,
+    text: T.Colors.crimson,
+    icon: 'close-circle',
+  },
 };
 
 function formatPrice(paise: number): string {
-  return `₹${(paise / 100).toFixed(2)}`;
+  return `\u20b9${(paise / 100).toFixed(2)}`;
+}
+
+function getStatusConfig(status: string) {
+  return STATUS_CONFIG[status] ?? {
+    label: status,
+    bg: T.Colors.borderLight,
+    text: T.Colors.textSecondary,
+    icon: 'ellipsis-horizontal',
+  };
 }
 
 // ─── Order Card ────────────────────────────────────────────────────────────────
 
-function OrderCard({ order }: { order: MockOrder }) {
-  const config = STATUS_CONFIG[order.status];
+function OrderCard({ order }: { order: Order }) {
+  const config = getStatusConfig(order.status);
 
   const handleReorder = () => {
     Alert.alert(
       'Reorder',
-      `Adding items from order ${order.short_code} to your cart.\n\n${order.items_summary}`,
+      `Re-ordering items from order ${order.short_code}.`,
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Add to Cart',
-          onPress: () =>
-            Alert.alert('Added!', 'Items have been added to your cart.'),
-        },
+        { text: 'Add to Cart', onPress: () => Alert.alert('Added!', 'Items have been added to your cart.') },
       ],
     );
   };
 
+  const router = useRouter();
+
   const handleTrack = () => {
-    Alert.alert(
-      'Track Order',
-      `Order ${order.short_code} is currently ${config.label.toLowerCase()}.\n\nEstimated arrival: ${order.time}`,
-      [{ text: 'OK' }],
-    );
+    router.push({ pathname: '/tracking/[id]', params: { id: order.id } });
   };
+
+  const totalPaise = order.total_paise ?? 0;
+  const pharmacyId = order.pharmacy_id ?? '';
+  const placedAt = order.placed_at
+    ? new Date(order.placed_at).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
+    : '—';
 
   return (
     <View style={styles.card}>
@@ -93,9 +113,7 @@ function OrderCard({ order }: { order: MockOrder }) {
       <View style={styles.cardHeader}>
         <View>
           <Text style={styles.orderId}>{order.short_code}</Text>
-          <Text style={styles.orderDate}>
-            {order.date} · {order.time}
-          </Text>
+          <Text style={styles.orderDate}>{placedAt}</Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
           <Ionicons name={config.icon as any} size={13} color={config.text} />
@@ -108,21 +126,13 @@ function OrderCard({ order }: { order: MockOrder }) {
       {/* Pharmacy */}
       <View style={styles.pharmacyRow}>
         <Ionicons name="storefront-outline" size={16} color={T.Colors.textTertiary} />
-        <Text style={styles.pharmacyName}>{order.pharmacy_name}</Text>
-      </View>
-
-      {/* Items */}
-      <View style={styles.itemsRow}>
-        <Ionicons name="medical-outline" size={16} color={T.Colors.textTertiary} />
-        <Text style={styles.itemsSummary} numberOfLines={2}>
-          {order.items_summary}
-        </Text>
+        <Text style={styles.pharmacyName}>Pharmacy {pharmacyId.slice(-4) || 'Local'}</Text>
       </View>
 
       {/* Footer */}
       <View style={styles.cardFooter}>
         <Text style={styles.totalLabel}>
-          Total: <Text style={styles.totalAmount}>{formatPrice(order.total_paise)}</Text>
+          Total: <Text style={styles.totalAmount}>{formatPrice(totalPaise)}</Text>
         </Text>
         <View style={styles.footerActions}>
           {order.status === 'delivered' ? (
@@ -145,26 +155,44 @@ function OrderCard({ order }: { order: MockOrder }) {
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function OrdersScreen() {
-  const { data: apiOrders, isError } = useQuery({
+  const { data: apiOrders, isError, isLoading } = useQuery({
     queryKey: ['orders'],
     queryFn: ordersApi.list,
     retry: 1,
   });
 
-  const displayOrders: MockOrder[] =
-    !isError && apiOrders && apiOrders.length > 0
-      ? (apiOrders as unknown as MockOrder[])
-      : MOCK_ORDERS;
+  // Requirement 4: No MOCK_ORDERS fallback — show real data or empty state
+  const displayOrders: Order[] = apiOrders ?? [];
 
-  const ListEmpty = () => (
-    <View style={styles.empty}>
-      <View style={styles.emptyIconWrap}>
-        <Ionicons name="receipt-outline" size={40} color={T.Colors.navyMid} />
+  const ListEmpty = () => {
+    if (isLoading) {
+      return (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={T.Colors.navyMid} />
+        </View>
+      );
+    }
+    if (isError) {
+      return (
+        <View style={styles.empty}>
+          <View style={styles.emptyIconWrap}>
+            <Ionicons name="cloud-offline-outline" size={40} color={T.Colors.border} />
+          </View>
+          <Text style={styles.emptyTitle}>Couldn’t load orders</Text>
+          <Text style={styles.emptyText}>Check your connection and try again</Text>
+        </View>
+      );
+    }
+    return (
+      <View style={styles.empty}>
+        <View style={styles.emptyIconWrap}>
+          <Ionicons name="receipt-outline" size={40} color={T.Colors.navyMid} />
+        </View>
+        <Text style={styles.emptyTitle}>No orders yet</Text>
+        <Text style={styles.emptyText}>Your order history will appear here</Text>
       </View>
-      <Text style={styles.emptyTitle}>No orders yet</Text>
-      <Text style={styles.emptyText}>Your order history will appear here</Text>
-    </View>
-  );
+    );
+  };
 
   const ListHeader = () => (
     <View style={styles.listHeader}>
@@ -176,7 +204,7 @@ export default function OrdersScreen() {
   );
 
   return (
-    <FlatList<MockOrder>
+    <FlatList<Order>
       data={displayOrders}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <OrderCard order={item} />}
@@ -198,6 +226,7 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.Colors.surface },
   list: { padding: T.Spacing.lg, gap: 12 },
   listEmpty: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
 
   listHeader: {
     flexDirection: 'row',
