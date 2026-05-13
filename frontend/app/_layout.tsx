@@ -18,6 +18,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="(auth)" />
           <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="rider" />
           <Stack.Screen name="medicine/[id]" options={{ headerShown: true, title: 'Medicine' }} />
           <Stack.Screen name="pharmacy/[id]" options={{ headerShown: true, title: 'Pharmacy' }} />
           <Stack.Screen name="order/[id]" options={{ headerShown: true, title: 'Order Details' }} />

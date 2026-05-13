@@ -9,37 +9,49 @@ import {
   ActivityIndicator,
   ScrollView,
   Keyboard,
+  Linking,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useLocalSearchParams, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { logisticsApi } from '@/api/logistics';
 import { ordersApi } from '@/api/orders';
+import { T } from '@/theme';
 import type { Assignment, Order } from '@/types';
 
 type DeliveryStep = 'pickup' | 'delivering' | 'otp' | 'done';
 
+const STEPS: { id: DeliveryStep; label: string; icon: string }[] = [
+  { id: 'pickup',     label: 'Pickup',    icon: 'storefront-outline' },
+  { id: 'delivering', label: 'En Route',  icon: 'navigate-outline' },
+  { id: 'otp',        label: 'Verify OTP', icon: 'keypad-outline' },
+  { id: 'done',       label: 'Done',      icon: 'checkmark-circle' },
+];
+
 function StepIndicator({ step }: { step: DeliveryStep }) {
-  const steps: { id: DeliveryStep; label: string }[] = [
-    { id: 'pickup', label: 'Pickup' },
-    { id: 'delivering', label: 'En Route' },
-    { id: 'otp', label: 'Verify OTP' },
-    { id: 'done', label: 'Done' },
-  ];
-  const idx = steps.findIndex((s) => s.id === step);
+  const idx = STEPS.findIndex((s) => s.id === step);
   return (
     <View style={stepStyles.row}>
-      {steps.map((s, i) => (
-        <View key={s.id} style={{ flex: 1, alignItems: 'center' }}>
-          <View style={[stepStyles.dot, i <= idx && stepStyles.dotActive]}>
-            <Text style={[stepStyles.dotText, i <= idx && stepStyles.dotTextActive]}>
-              {i < idx ? '✓' : i + 1}
-            </Text>
-          </View>
-          <Text style={[stepStyles.label, i <= idx && stepStyles.labelActive]}>{s.label}</Text>
-          {i < steps.length - 1 && (
-            <View style={[stepStyles.line, i < idx && stepStyles.lineActive]} />
+      {STEPS.map((s, i) => (
+        <View key={s.id} style={stepStyles.col}>
+          {i < STEPS.length - 1 && (
+            <View style={[stepStyles.line, i < idx && stepStyles.lineDone]} />
           )}
+          <View style={[stepStyles.dot, i <= idx && stepStyles.dotActive]}>
+            {i < idx ? (
+              <Ionicons name="checkmark" size={14} color={T.Colors.white} />
+            ) : (
+              <Ionicons
+                name={s.icon as any}
+                size={13}
+                color={i === idx ? T.Colors.white : T.Colors.textTertiary}
+              />
+            )}
+          </View>
+          <Text style={[stepStyles.label, i <= idx && stepStyles.labelActive]}>
+            {s.label}
+          </Text>
         </View>
       ))}
     </View>
@@ -47,32 +59,32 @@ function StepIndicator({ step }: { step: DeliveryStep }) {
 }
 
 const stepStyles = StyleSheet.create({
-  row: { flexDirection: 'row', paddingVertical: 12 },
-  dot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: '#cbd5e1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    marginBottom: 4,
-  },
-  dotActive: { borderColor: '#0c4a6e', backgroundColor: '#0c4a6e' },
-  dotText: { fontSize: 11, fontWeight: '700', color: '#94a3b8' },
-  dotTextActive: { color: '#fff' },
-  label: { fontSize: 10, color: '#94a3b8', fontWeight: '600', textAlign: 'center' },
-  labelActive: { color: '#0c4a6e' },
+  row: { flexDirection: 'row', paddingVertical: T.Spacing.md },
+  col: { flex: 1, alignItems: 'center', position: 'relative' },
   line: {
     position: 'absolute',
     top: 14,
-    right: -24,
-    width: 48,
+    left: '50%',
+    right: '-50%',
     height: 2,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: T.Colors.border,
+    zIndex: 0,
   },
-  lineActive: { backgroundColor: '#0c4a6e' },
+  lineDone: { backgroundColor: T.Colors.navyMid },
+  dot: {
+    width: 30, height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    borderColor: T.Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: T.Colors.white,
+    marginBottom: T.Spacing.xs,
+    zIndex: 1,
+  },
+  dotActive: { borderColor: T.Colors.navyMid, backgroundColor: T.Colors.navyMid },
+  label: { fontSize: 9, color: T.Colors.textTertiary, fontWeight: T.FontWeight.semibold, textAlign: 'center' },
+  labelActive: { color: T.Colors.navyMid },
 });
 
 export default function ActiveDeliveryScreen() {
@@ -86,6 +98,7 @@ export default function ActiveDeliveryScreen() {
     queryKey: ['assignment', id],
     queryFn: () => logisticsApi.getAssignment(id!),
     enabled: !!id,
+    refetchInterval: 15_000,
   });
 
   const { data: order } = useQuery<Order>({
@@ -94,15 +107,14 @@ export default function ActiveDeliveryScreen() {
     enabled: !!assignment?.order_id,
   });
 
-  // Derive step from assignment status
   const step: DeliveryStep =
-    !assignment ? 'pickup'
-    : assignment.status === 'assigned' ? 'pickup'
+    !assignment            ? 'pickup'
+    : assignment.status === 'assigned'  ? 'pickup'
     : assignment.status === 'picked_up' ? 'otp'
     : assignment.status === 'delivered' ? 'done'
     : 'pickup';
 
-  // GPS ping every 30s
+  // GPS ping
   useEffect(() => {
     let watchSub: Location.LocationSubscription | null = null;
 
@@ -129,78 +141,106 @@ export default function ActiveDeliveryScreen() {
 
   const pickupMutation = useMutation({
     mutationFn: () => logisticsApi.updateAssignmentStatus(id!, 'picked_up'),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['assignment', id] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['assignment', id] }),
+    onError: () => Alert.alert('Error', 'Could not confirm pickup. Try again.'),
   });
 
   const otpMutation = useMutation({
     mutationFn: () => logisticsApi.verifyOtp(id!, otp),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['assignment', id] });
-      router.replace('/rider/tasks');
+      qc.invalidateQueries({ queryKey: ['rider-assignments'] });
     },
     onError: () => {
       setOtpError('Invalid OTP. Ask the customer to share it again.');
+      setOtp('');
     },
   });
+
+  const addr = order?.delivery_address as Record<string, string> | undefined;
+
+  const openMaps = () => {
+    if (!addr) return;
+    const query = encodeURIComponent(`${addr.line1}, ${addr.city} ${addr.pincode}`);
+    Linking.openURL(`https://maps.google.com/?q=${query}`);
+  };
 
   if (assignmentLoading || !assignment) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator color="#0c4a6e" size="large" />
+        <ActivityIndicator color={T.Colors.navyMid} size="large" />
       </View>
     );
   }
 
-  const addr = order?.delivery_address as Record<string, string> | undefined;
-
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* Step indicator */}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Progress stepper */}
       <View style={styles.card}>
         <StepIndicator step={step} />
       </View>
 
-      {/* Order summary */}
+      {/* Order info */}
       <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Order #{assignment.order_id.slice(0, 8)}</Text>
+        <Text style={styles.cardTitle}>Order #{assignment.order_id.slice(0, 8).toUpperCase()}</Text>
+
         {addr && (
-          <View style={styles.addressBox}>
-            <Text style={styles.addressLabel}>📍 Drop Address</Text>
+          <Pressable style={styles.addressBox} onPress={openMaps}>
+            <View style={styles.addressHeader}>
+              <Ionicons name="location" size={16} color={T.Colors.navyMid} />
+              <Text style={styles.addressLabel}>Drop Address</Text>
+              <Ionicons name="open-outline" size={14} color={T.Colors.textTertiary} style={{ marginLeft: 'auto' }} />
+            </View>
             <Text style={styles.addressText}>{addr.line1}</Text>
             {addr.line2 ? <Text style={styles.addressText}>{addr.line2}</Text> : null}
             <Text style={styles.addressText}>{addr.city} — {addr.pincode}</Text>
-          </View>
+          </Pressable>
         )}
+
         <View style={styles.metaRow}>
           {assignment.distance_m != null && (
             <View style={styles.metaChip}>
+              <Ionicons name="map-outline" size={13} color={T.Colors.textSecondary} />
               <Text style={styles.metaChipText}>{(assignment.distance_m / 1000).toFixed(1)} km</Text>
             </View>
           )}
           {assignment.eta_seconds != null && (
             <View style={styles.metaChip}>
+              <Ionicons name="time-outline" size={13} color={T.Colors.textSecondary} />
               <Text style={styles.metaChipText}>ETA {Math.ceil(assignment.eta_seconds / 60)} min</Text>
             </View>
           )}
         </View>
       </View>
 
-      {/* Action area */}
+      {/* Action card */}
       {step === 'pickup' && (
         <View style={styles.card}>
-          <Text style={styles.actionTitle}>Confirm Pickup</Text>
-          <Text style={styles.actionSub}>Pick up the order from the pharmacy and confirm below.</Text>
+          <View style={styles.actionHeader}>
+            <View style={[styles.actionIcon, { backgroundColor: T.Colors.amberLight }]}>
+              <Ionicons name="storefront-outline" size={22} color={T.Colors.amber} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionTitle}>Confirm Pickup</Text>
+              <Text style={styles.actionSub}>Pick up the order from the pharmacy and tap below.</Text>
+            </View>
+          </View>
           <Pressable
             style={[styles.primaryBtn, pickupMutation.isPending && styles.btnDisabled]}
             onPress={() => pickupMutation.mutate()}
             disabled={pickupMutation.isPending}
           >
             {pickupMutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={T.Colors.white} />
             ) : (
-              <Text style={styles.primaryBtnText}>✅ Confirm Pickup</Text>
+              <>
+                <Ionicons name="checkmark-circle-outline" size={18} color={T.Colors.white} />
+                <Text style={styles.primaryBtnText}>Confirm Pickup</Text>
+              </>
             )}
           </Pressable>
         </View>
@@ -208,40 +248,66 @@ export default function ActiveDeliveryScreen() {
 
       {step === 'delivering' && (
         <View style={styles.card}>
-          <Text style={styles.actionTitle}>En Route to Customer</Text>
-          <Text style={styles.actionSub}>Navigate to the drop address. Enter OTP when you arrive.</Text>
-          <Pressable style={styles.secondaryBtn} onPress={() => {}}>
-            <Text style={styles.secondaryBtnText}>🗺 Open in Maps</Text>
+          <View style={styles.actionHeader}>
+            <View style={[styles.actionIcon, { backgroundColor: T.Colors.navyLight }]}>
+              <Ionicons name="navigate-outline" size={22} color={T.Colors.navyMid} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionTitle}>En Route to Customer</Text>
+              <Text style={styles.actionSub}>Navigate to the drop address. Enter OTP on arrival.</Text>
+            </View>
+          </View>
+          <Pressable style={styles.secondaryBtn} onPress={openMaps}>
+            <Ionicons name="map-outline" size={17} color={T.Colors.navyMid} />
+            <Text style={styles.secondaryBtnText}>Open in Maps</Text>
           </Pressable>
         </View>
       )}
 
       {step === 'otp' && (
         <View style={styles.card}>
-          <Text style={styles.actionTitle}>Verify Delivery OTP</Text>
-          <Text style={styles.actionSub}>Ask the customer for the 4-digit OTP shown in their app.</Text>
+          <View style={styles.actionHeader}>
+            <View style={[styles.actionIcon, { backgroundColor: T.Colors.emeraldLight }]}>
+              <Ionicons name="keypad-outline" size={22} color={T.Colors.emerald} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.actionTitle}>Verify Delivery OTP</Text>
+              <Text style={styles.actionSub}>Ask the customer for the 4-digit OTP shown in their app.</Text>
+            </View>
+          </View>
           <TextInput
             style={[styles.otpInput, otpError ? styles.otpInputError : null]}
             value={otp}
-            onChangeText={(t) => { setOtp(t.replace(/\D/g, '').slice(0, 4)); setOtpError(''); }}
+            onChangeText={(t) => {
+              setOtp(t.replace(/\D/g, '').slice(0, 4));
+              setOtpError('');
+            }}
             keyboardType="numeric"
             maxLength={4}
-            placeholder="Enter OTP"
-            placeholderTextColor="#94a3b8"
+            placeholder="_ _ _ _"
+            placeholderTextColor={T.Colors.border}
             textAlign="center"
             returnKeyType="done"
             onSubmitEditing={() => { Keyboard.dismiss(); if (otp.length === 4) otpMutation.mutate(); }}
           />
-          {otpError ? <Text style={styles.errorText}>{otpError}</Text> : null}
+          {otpError ? (
+            <View style={styles.errorRow}>
+              <Ionicons name="alert-circle-outline" size={15} color={T.Colors.crimson} />
+              <Text style={styles.errorText}>{otpError}</Text>
+            </View>
+          ) : null}
           <Pressable
             style={[styles.primaryBtn, (otp.length < 4 || otpMutation.isPending) && styles.btnDisabled]}
             onPress={() => otpMutation.mutate()}
             disabled={otp.length < 4 || otpMutation.isPending}
           >
             {otpMutation.isPending ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={T.Colors.white} />
             ) : (
-              <Text style={styles.primaryBtnText}>Verify & Complete</Text>
+              <>
+                <Ionicons name="shield-checkmark-outline" size={18} color={T.Colors.white} />
+                <Text style={styles.primaryBtnText}>Verify & Complete Delivery</Text>
+              </>
             )}
           </Pressable>
         </View>
@@ -249,10 +315,13 @@ export default function ActiveDeliveryScreen() {
 
       {step === 'done' && (
         <View style={[styles.card, styles.doneCard]}>
-          <Text style={styles.doneEmoji}>🎉</Text>
+          <View style={styles.doneIconWrap}>
+            <Ionicons name="checkmark-circle" size={52} color={T.Colors.emerald} />
+          </View>
           <Text style={styles.doneTitle}>Delivered!</Text>
           <Text style={styles.doneSub}>Great work. Back to tasks for your next assignment.</Text>
           <Pressable style={styles.primaryBtn} onPress={() => router.replace('/rider/tasks')}>
+            <Ionicons name="bicycle-outline" size={18} color={T.Colors.white} />
             <Text style={styles.primaryBtnText}>Back to Tasks</Text>
           </Pressable>
         </View>
@@ -262,59 +331,89 @@ export default function ActiveDeliveryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { padding: 16, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: T.Colors.surface },
+  content: { padding: T.Spacing.lg, paddingBottom: 40 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
   card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 12,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.xl,
+    padding: T.Spacing.lg,
+    marginBottom: T.Spacing.md,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: T.Colors.border,
+    ...T.Shadow.card,
   },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: '#0f172a', marginBottom: 12 },
-  addressBox: { backgroundColor: '#f0f9ff', borderRadius: 12, padding: 14, marginBottom: 12 },
-  addressLabel: { fontSize: 11, fontWeight: '700', color: '#0369a1', marginBottom: 4 },
-  addressText: { fontSize: 14, color: '#0c4a6e', lineHeight: 20 },
-  metaRow: { flexDirection: 'row', gap: 8 },
-  metaChip: { backgroundColor: '#f1f5f9', paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
-  metaChipText: { fontSize: 12, fontWeight: '600', color: '#334155' },
-  actionTitle: { fontSize: 17, fontWeight: '800', color: '#0f172a', marginBottom: 6 },
-  actionSub: { fontSize: 13, color: '#64748b', lineHeight: 18, marginBottom: 16 },
+  cardTitle: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginBottom: T.Spacing.md },
+
+  addressBox: {
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.md,
+    marginBottom: T.Spacing.md,
+  },
+  addressHeader: { flexDirection: 'row', alignItems: 'center', gap: T.Spacing.xs, marginBottom: T.Spacing.sm },
+  addressLabel: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.bold, color: T.Colors.navyMid },
+  addressText: { fontSize: T.FontSize.sm, color: T.Colors.navy, lineHeight: 20 },
+
+  metaRow: { flexDirection: 'row', gap: T.Spacing.sm },
+  metaChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: T.Colors.surface,
+    paddingHorizontal: T.Spacing.sm, paddingVertical: 4,
+    borderRadius: T.Radius.full,
+  },
+  metaChipText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.medium, color: T.Colors.textSecondary },
+
+  actionHeader: { flexDirection: 'row', gap: T.Spacing.md, alignItems: 'flex-start', marginBottom: T.Spacing.lg },
+  actionIcon: { width: 44, height: 44, borderRadius: T.Radius.md, alignItems: 'center', justifyContent: 'center' },
+  actionTitle: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.black, color: T.Colors.textPrimary, marginBottom: 2 },
+  actionSub: { fontSize: T.FontSize.sm, color: T.Colors.textSecondary, lineHeight: 18 },
+
   primaryBtn: {
-    backgroundColor: '#0c4a6e',
-    borderRadius: 14,
+    backgroundColor: T.Colors.navy,
+    borderRadius: T.Radius.lg,
     paddingVertical: 15,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: T.Spacing.sm,
+    ...T.Shadow.card,
   },
-  primaryBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  primaryBtnText: { color: T.Colors.white, fontWeight: T.FontWeight.bold, fontSize: T.FontSize.base },
   btnDisabled: { opacity: 0.4 },
+
   secondaryBtn: {
-    backgroundColor: '#f0f9ff',
-    borderRadius: 14,
-    paddingVertical: 15,
+    backgroundColor: T.Colors.navyLight,
+    borderRadius: T.Radius.lg,
+    paddingVertical: 14,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: T.Spacing.sm,
     borderWidth: 1,
-    borderColor: '#bae6fd',
+    borderColor: T.Colors.navyMid,
   },
-  secondaryBtnText: { color: '#0369a1', fontWeight: '700', fontSize: 15 },
+  secondaryBtnText: { color: T.Colors.navyMid, fontWeight: T.FontWeight.bold, fontSize: T.FontSize.base },
+
   otpInput: {
     borderWidth: 2,
-    borderColor: '#e2e8f0',
-    borderRadius: 14,
+    borderColor: T.Colors.border,
+    borderRadius: T.Radius.lg,
     paddingVertical: 14,
-    fontSize: 28,
-    fontWeight: '800',
-    color: '#0c4a6e',
-    letterSpacing: 8,
-    marginBottom: 12,
+    fontSize: 32,
+    fontWeight: T.FontWeight.black as any,
+    color: T.Colors.navy,
+    letterSpacing: 12,
+    marginBottom: T.Spacing.sm,
     textAlign: 'center',
   },
-  otpInputError: { borderColor: '#ef4444' },
-  errorText: { fontSize: 13, color: '#ef4444', marginBottom: 10, textAlign: 'center' },
-  doneCard: { alignItems: 'center', paddingVertical: 36 },
-  doneEmoji: { fontSize: 52, marginBottom: 12 },
-  doneTitle: { fontSize: 24, fontWeight: '800', color: '#15803d', marginBottom: 6 },
-  doneSub: { fontSize: 14, color: '#64748b', textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  otpInputError: { borderColor: T.Colors.crimson },
+  errorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: T.Spacing.md },
+  errorText: { fontSize: T.FontSize.sm, color: T.Colors.crimson },
+
+  doneCard: { alignItems: 'center', paddingVertical: T.Spacing['3xl'] },
+  doneIconWrap: { marginBottom: T.Spacing.lg },
+  doneTitle: { fontSize: T.FontSize['3xl'], fontWeight: T.FontWeight.black, color: T.Colors.emerald, marginBottom: T.Spacing.sm },
+  doneSub: { fontSize: T.FontSize.sm, color: T.Colors.textSecondary, textAlign: 'center', marginBottom: T.Spacing['2xl'], lineHeight: 20 },
 });

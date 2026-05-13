@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Header, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
 from app.modules.order.schemas import (
-    OrderOut, OrderItemOut, OrderStatusHistoryOut,
+    OrderOut, OrderWithItemsOut, OrderItemOut, OrderStatusHistoryOut,
     PlaceOrderIn, UpdateOrderStatusIn, RateOrderIn,
 )
 from app.modules.order import service
@@ -27,12 +27,12 @@ async def list_my_orders(
     return await service.get_user_orders(session, x_user_id)
 
 
-@router.get("/pharmacy/{pharmacy_id}", response_model=list[OrderOut])
+@router.get("/pharmacy/{pharmacy_id}", response_model=list[OrderWithItemsOut])
 async def list_pharmacy_orders(
     pharmacy_id: str,
     statuses: str | None = Query(None, description="Comma-separated statuses, e.g. pending,confirmed"),
     session: AsyncSession = Depends(get_async_session),
-) -> list[OrderOut]:
+) -> list[OrderWithItemsOut]:
     status_list = [s.strip() for s in statuses.split(",")] if statuses else None
     return await service.get_pharmacy_orders(session, pharmacy_id, status_list)
 

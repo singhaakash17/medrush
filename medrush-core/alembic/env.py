@@ -30,6 +30,22 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
+# Only manage our _m schemas — never touch public (PostGIS lives there)
+APP_SCHEMAS = {
+    "identity_m", "user_m", "catalog_m", "pharmacy_m", "inventory_m",
+    "geo_m", "cart_m", "order_m", "rx_m", "payment_m", "logistics_m",
+    "notification_m", "audit_m",
+}
+
+
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table":
+        schema = getattr(object, "schema", None) or "public"
+        return schema in APP_SCHEMAS
+    if type_ == "schema":
+        return name in APP_SCHEMAS
+    return True
+
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
@@ -40,6 +56,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         include_schemas=True,
         version_table_schema="public",
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -51,6 +68,7 @@ def do_run_migrations(connection: Connection) -> None:
         target_metadata=target_metadata,
         include_schemas=True,
         version_table_schema="public",
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()

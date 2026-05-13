@@ -58,7 +58,7 @@ export default function EarningsPage() {
 
   const { data: summary, isLoading: summaryLoading } = useQuery<EarningSummary>({
     queryKey: ['earnings', pharmacyId, period],
-    queryFn: async () => (await api.get(`/pharmacy/${pharmacyId}/earnings`, { params: { period } })).data,
+    queryFn: async () => (await api.get(`/pharmacies/${pharmacyId}/earnings`, { params: { period } })).data,
     enabled: !!pharmacyId,
     // Fallback mock data for development
     placeholderData: {
@@ -82,7 +82,7 @@ export default function EarningsPage() {
 
   const { data: payouts = [] } = useQuery<Payout[]>({
     queryKey: ['payouts', pharmacyId],
-    queryFn: async () => (await api.get(`/pharmacy/${pharmacyId}/payouts`)).data,
+    queryFn: async () => (await api.get(`/pharmacies/${pharmacyId}/payouts`)).data,
     enabled: !!pharmacyId,
     placeholderData: [
       {

@@ -4,26 +4,16 @@ import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
 import {
   ClipboardList, Package, TrendingUp, Zap,
-  Circle, Settings, LogOut,
+  Circle, Settings, LogOut, ShoppingCart, Bell, Receipt,
 } from 'lucide-react';
 
 const NAV = [
-  {
-    href: '/dashboard/orders',
-    icon: ClipboardList,
-    label: 'Orders',
-    badge: 'live',
-  },
-  {
-    href: '/dashboard/inventory',
-    icon: Package,
-    label: 'Inventory',
-  },
-  {
-    href: '/dashboard/earnings',
-    icon: TrendingUp,
-    label: 'Earnings',
-  },
+  { href: '/dashboard/orders',    icon: ClipboardList, label: 'Orders',    badge: 'live' },
+  { href: '/dashboard/inventory', icon: Package,       label: 'Inventory' },
+  { href: '/dashboard/billing',   icon: Receipt,       label: 'New Bill' },
+  { href: '/dashboard/sales',     icon: ShoppingCart,  label: 'Sales' },
+  { href: '/dashboard/alerts',    icon: Bell,          label: 'Alerts' },
+  { href: '/dashboard/earnings',  icon: TrendingUp,    label: 'Earnings' },
 ];
 
 const BOTTOM_NAV = [

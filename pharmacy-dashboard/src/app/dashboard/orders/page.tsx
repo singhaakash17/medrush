@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { clsx } from 'clsx';
 import {
@@ -40,7 +41,7 @@ type Tab = 'active' | 'done' | 'all';
 
 function usePharmacyId() {
   if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? 'ph_ind_01';
+  return localStorage.getItem('pharmacy_id') ?? '';
 }
 
 // ── Skeleton ─────────────────────────────────────────────────────────────────
@@ -158,7 +159,15 @@ export default function OrdersPage() {
   const [newOrderAlert, setNewOrderAlert] = useState(false);
   const qc = useQueryClient();
   const wsRef = useRef<WebSocket | null>(null);
+  const router = useRouter();
   const pharmacyId = usePharmacyId();
+
+  // Redirect to setup if no pharmacy configured
+  useEffect(() => {
+    if (!pharmacyId) {
+      router.replace('/setup');
+    }
+  }, [pharmacyId, router]);
 
   const statuses: OrderStatus[] =
     tab === 'active' ? ACTIVE : tab === 'done' ? DONE : [...ACTIVE, ...DONE];
@@ -248,8 +257,27 @@ export default function OrdersPage() {
           >
             <RefreshCw size={14} />
           </button>
+          <Link
+            href="/setup"
+            className="btn btn-ghost btn-sm text-surface-400 hover:text-surface-700"
+            title="Change pharmacy"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93l-1.41 1.41M4.93 19.07l-1.41-1.41M4.93 4.93l1.41 1.41M19.07 19.07l-1.41-1.41M12 2v2M12 20v2M2 12h2M20 12h2"/>
+            </svg>
+          </Link>
         </div>
       </div>
+
+      {/* Pharmacy ID pill */}
+      {pharmacyId && (
+        <div className="inline-flex items-center gap-1.5 text-xs text-surface-500 bg-surface-50
+                        border border-surface-200 rounded-full px-3 py-1 -mt-3">
+          <span className="font-mono font-semibold">{pharmacyId}</span>
+          <span className="text-surface-300">·</span>
+          <Link href="/setup" className="text-navy-600 hover:underline">change</Link>
+        </div>
+      )}
 
       {/* ── Stats strip ──────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-3">

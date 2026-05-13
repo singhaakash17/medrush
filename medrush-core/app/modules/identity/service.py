@@ -36,10 +36,14 @@ async def verify_otp(session: AsyncSession, phone_e164: str, otp: str) -> OtpVer
         await create_role_assignment(session, principal_id, "customer")
         await session.commit()
 
+    # Look up actual role from role_assignments (rider, pharmacist, customer, etc.)
+    roles = await list_roles(session, principal.id)
+    role = roles[0].role if roles else "customer"
+
     return OtpVerifyOut(
         principal_id=principal.id,
         phone_e164=principal.phone_e164,
-        role="customer",
+        role=role,
     )
 
 

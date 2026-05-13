@@ -449,7 +449,7 @@ export const PHARMACIES: MockPharmacy[] = [
 export const MEDICINES: MockMedicine[] = [
   // Fever & Pain
   {
-    id: 'med_001',
+    id: 'med_dolo650',
     brand_name: 'Dolo 650',
     generic_name: 'Paracetamol',
     form: 'Tablet',
@@ -529,7 +529,7 @@ export const MEDICINES: MockMedicine[] = [
 
   // Antibiotics
   {
-    id: 'med_007',
+    id: 'med_azithral500',
     brand_name: 'Azee 500',
     generic_name: 'Azithromycin',
     form: 'Tablet',
@@ -609,7 +609,7 @@ export const MEDICINES: MockMedicine[] = [
 
   // Gastro
   {
-    id: 'med_013',
+    id: 'med_pan40',
     brand_name: 'Pan 40',
     generic_name: 'Pantoprazole',
     form: 'Tablet',
@@ -689,7 +689,7 @@ export const MEDICINES: MockMedicine[] = [
 
   // Diabetes
   {
-    id: 'med_019',
+    id: 'med_glycomet500',
     brand_name: 'Glycomet 500',
     generic_name: 'Metformin',
     form: 'Tablet',
@@ -810,7 +810,7 @@ export const MEDICINES: MockMedicine[] = [
 
   // Allergy
   {
-    id: 'med_028',
+    id: 'med_cetzine10',
     brand_name: 'Alerid 10',
     generic_name: 'Cetirizine',
     form: 'Tablet',
@@ -864,16 +864,16 @@ export const MEDICINES: MockMedicine[] = [
 
   // Vitamins & Supplements
   {
-    id: 'med_032',
-    brand_name: 'Vitamin D3 60K',
-    generic_name: 'Cholecalciferol',
-    form: 'Capsule',
-    strength: '60000 IU',
-    mrp_paise: 18000,
-    pack_size: 4,
-    pack_unit: 'capsules',
+    id: 'med_shelcal500',
+    brand_name: 'Shelcal 500',
+    generic_name: 'Calcium Carbonate + Vitamin D3',
+    form: 'Tablet',
+    strength: '500mg/250IU',
+    mrp_paise: 12500,
+    pack_size: 15,
+    pack_unit: 'tablets',
     rx_required: false,
-    manufacturer: 'Mankind Pharma',
+    manufacturer: 'Elder Pharmaceuticals',
     category: 'Vitamins',
   },
   {
