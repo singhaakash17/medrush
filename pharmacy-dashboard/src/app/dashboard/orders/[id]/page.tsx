@@ -2,75 +2,130 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
+import { clsx } from 'clsx';
+import {
+  ChevronLeft, CheckCircle2, XCircle, AlertTriangle,
+  ShieldCheck, ShieldAlert, MapPin, Package,
+  FileText, Truck, User, Clock,
+} from 'lucide-react';
 import { api, formatPaise, formatTime } from '@/lib/api';
 import { SlaCountdown } from '@/components/SlaCountdown';
-import { CheckCircle, XCircle, ChevronLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
 
 type OrderStatus = 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'delivered' | 'cancelled';
 
-interface RxFlag { id: string; flag_type: string; message: string; }
-interface RxItem { id: string; medicine_name: string; dosage: string; frequency: string; duration_days: number; }
-interface Prescription {
-  id: string;
-  s3_key: string;
-  ocr_status: string;
-  ocr_confidence_bps: number;
-  doctor_name?: string;
-  hospital_name?: string;
-  verified_at?: string;
-  items: RxItem[];
-  flags: RxFlag[];
+interface RxFlag  { id: string; flag_type: string; message: string; }
+interface RxItem  { id: string; medicine_name: string; dosage: string; frequency: string; duration_days: number; }
+interface Rx {
+  id: string; s3_key: string; ocr_status: string; ocr_confidence_bps: number;
+  doctor_name?: string; hospital_name?: string; verified_at?: string;
+  items: RxItem[]; flags: RxFlag[];
 }
-
 interface OrderItem {
-  medicine_id: string;
-  medicine_name: string;
-  qty: number;
-  unit_price_paise: number;
-  requires_rx: boolean;
+  medicine_id: string; medicine_name: string; qty: number;
+  unit_price_paise: number; requires_rx: boolean;
 }
-
 interface Order {
-  id: string;
-  status: OrderStatus;
-  placed_at: string;
-  sla_target_at: string;
-  subtotal_paise: number;
-  delivery_fee_paise: number;
-  platform_fee_paise: number;
-  gst_paise: number;
-  total_paise: number;
+  id: string; status: OrderStatus; placed_at: string; sla_target_at: string;
+  subtotal_paise: number; delivery_fee_paise: number; platform_fee_paise: number;
+  gst_paise: number; total_paise: number;
   delivery_address: { line1: string; line2?: string; city: string; pincode: string };
-  items: OrderItem[];
-  prescription_id?: string;
+  items: OrderItem[]; prescription_id?: string;
 }
 
 const STEPS: OrderStatus[] = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'];
-
+const STEP_LABELS = ['New', 'Confirmed', 'Packed', 'Dispatched', 'Delivered'];
 const NEXT_STATUS: Partial<Record<OrderStatus, OrderStatus>> = {
-  pending: 'confirmed',
-  confirmed: 'packed',
-  packed: 'dispatched',
+  pending: 'confirmed', confirmed: 'packed', packed: 'dispatched',
+};
+const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
+  pending: 'Confirm Order', confirmed: 'Mark as Packed', packed: 'Hand to Rider',
 };
 
-const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
-  pending: 'Confirm Order',
-  confirmed: 'Mark Packed',
-  packed: 'Hand to Rider',
-};
+// ── Confidence bar ────────────────────────────────────────────────────────────
+function ConfidenceBar({ bps }: { bps: number }) {
+  const pct = Math.round(bps / 100);
+  const isHigh = pct >= 80;
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1.5">
+        <span className="text-xs text-surface-500">AI Confidence</span>
+        <span className={clsx('text-xs font-bold', isHigh ? 'text-emerald-600' : 'text-amber-600')}>
+          {pct}%
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-surface-100 overflow-hidden">
+        <div
+          className={clsx(
+            'h-full rounded-full transition-all duration-700',
+            isHigh ? 'bg-gradient-to-r from-emerald-400 to-emerald-500'
+                   : 'bg-gradient-to-r from-amber-400 to-amber-500',
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Status stepper ───────────────────────────────────────────────────────────
+function StatusStepper({ status }: { status: OrderStatus }) {
+  if (status === 'cancelled') {
+    return (
+      <div className="flex items-center gap-2 p-4 bg-crimson-50 rounded-2xl border border-crimson-100">
+        <XCircle size={18} className="text-crimson-600 shrink-0" />
+        <span className="text-sm font-semibold text-crimson-700">This order was cancelled</span>
+      </div>
+    );
+  }
+  const idx = STEPS.indexOf(status);
+  return (
+    <div className="flex items-center gap-0 overflow-x-auto pb-1">
+      {STEPS.map((step, i) => {
+        const done   = i < idx;
+        const active = i === idx;
+        return (
+          <div key={step} className="flex items-center flex-1 last:flex-none min-w-0">
+            <div className="flex flex-col items-center gap-1.5 shrink-0">
+              <div className={clsx(
+                'w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all',
+                done   ? 'bg-navy-600 border-navy-600 text-white'
+                       : active ? 'border-navy-600 text-navy-600 bg-navy-50'
+                       : 'border-surface-200 text-surface-300 bg-white',
+              )}>
+                {done ? <CheckCircle2 size={14} /> : i + 1}
+              </div>
+              <span className={clsx(
+                'text-[10px] font-semibold whitespace-nowrap',
+                done || active ? 'text-navy-700' : 'text-surface-300',
+              )}>
+                {STEP_LABELS[i]}
+              </span>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={clsx(
+                'flex-1 h-0.5 mx-1.5 mb-5 rounded-full transition-all',
+                done ? 'bg-navy-600' : 'bg-surface-200',
+              )} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [checked, setChecked] = useState<Set<string>>(new Set());
 
-  const { data: order, isLoading: orderLoading } = useQuery<Order>({
+  const { data: order, isLoading } = useQuery<Order>({
     queryKey: ['order', id],
     queryFn: async () => (await api.get(`/orders/${id}`)).data,
   });
 
-  const { data: rx } = useQuery<Prescription>({
+  const { data: rx } = useQuery<Rx>({
     queryKey: ['order-rx', order?.prescription_id],
     queryFn: async () => (await api.get(`/rx/${order!.prescription_id}`)).data,
     enabled: !!order?.prescription_id,
@@ -83,137 +138,215 @@ export default function OrderDetailPage() {
 
   const verifyRxMutation = useMutation({
     mutationFn: async (approved: boolean) =>
-      api.patch(`/rx/${order!.prescription_id}/verify`, { approved, notes: approved ? 'Approved by pharmacist' : 'Rejected by pharmacist' }),
+      api.patch(`/rx/${order!.prescription_id}/verify`, {
+        approved, notes: approved ? 'Approved by pharmacist' : 'Rejected by pharmacist',
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['order-rx'] }),
   });
 
-  if (orderLoading || !order) {
+  if (isLoading || !order) {
     return (
-      <div className="p-6 max-w-4xl mx-auto space-y-4">
-        {[1, 2, 3].map((i) => <div key={i} className="h-32 bg-white rounded-2xl animate-pulse" />)}
+      <div className="p-6 max-w-5xl mx-auto space-y-4">
+        {[1, 2, 3].map(i => <div key={i} className="skeleton h-36 rounded-3xl" />)}
       </div>
     );
   }
 
-  const activeStatuses: OrderStatus[] = ['pending', 'confirmed', 'packed', 'dispatched'];
-  const isActive = activeStatuses.includes(order.status);
-  const next = NEXT_STATUS[order.status];
-  const allItemsChecked = order.items.every((it) => checkedItems.has(it.medicine_id));
-  const stepIdx = STEPS.indexOf(order.status);
+  const isActive    = ['pending', 'confirmed', 'packed', 'dispatched'].includes(order.status);
+  const next        = NEXT_STATUS[order.status];
+  const allChecked  = order.items.every(i => checked.has(i.medicine_id));
+  const needsCheck  = ['confirmed', 'packed'].includes(order.status);
+  const canProceed  = !needsCheck || allChecked;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={() => router.back()} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500">
-          <ChevronLeft size={20} />
+    <div className="p-6 max-w-5xl mx-auto space-y-5">
+
+      {/* ── Header ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={() => router.back()}
+          className="w-9 h-9 rounded-xl flex items-center justify-center
+                     bg-surface-100 hover:bg-surface-200 text-surface-600 transition-colors"
+        >
+          <ChevronLeft size={18} />
         </button>
-        <div className="flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="text-xl font-bold text-slate-800">Order #{id.slice(0, 8)}</h1>
-            {isActive && <SlaCountdown slaTargetAt={order.sla_target_at} placedAt={order.placed_at} />}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h1 className="text-xl font-black text-surface-900 tracking-tight">
+              Order #{order.id.slice(0, 8).toUpperCase()}
+            </h1>
+            {isActive && (
+              <SlaCountdown slaTargetAt={order.sla_target_at} placedAt={order.placed_at} size="md" />
+            )}
           </div>
-          <p className="text-sm text-slate-400 mt-0.5">Placed at {formatTime(order.placed_at)}</p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <Clock size={11} className="text-surface-400" />
+            <p className="text-xs text-surface-400">Placed at {formatTime(order.placed_at)}</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="text-xl font-black text-surface-900">{formatPaise(order.total_paise)}</div>
+          <div className="text-xs text-surface-400">{order.items.length} items</div>
         </div>
       </div>
 
-      {/* Status Stepper */}
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-4">
-        <div className="flex items-center gap-0">
-          {STEPS.map((step, i) => (
-            <div key={step} className="flex items-center flex-1 last:flex-none">
-              <div className="flex flex-col items-center gap-1">
-                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-colors
-                  ${i < stepIdx ? 'bg-[#0c4a6e] border-[#0c4a6e] text-white'
-                    : i === stepIdx ? 'border-[#0c4a6e] text-[#0c4a6e]'
-                    : 'border-slate-200 text-slate-300'}`}>
-                  {i < stepIdx ? '✓' : i + 1}
+      {/* ── Stepper ──────────────────────────────────────────── */}
+      <div className="card p-5">
+        <StatusStepper status={order.status} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+
+        {/* ── Left (3 cols) ─────────────────────────────────── */}
+        <div className="lg:col-span-3 space-y-4">
+
+          {/* Packing checklist */}
+          {needsCheck && (
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-navy-50 flex items-center justify-center">
+                  <Package size={15} className="text-navy-600" />
                 </div>
-                <span className={`text-[10px] font-medium capitalize whitespace-nowrap ${i <= stepIdx ? 'text-[#0c4a6e]' : 'text-slate-300'}`}>
-                  {step}
-                </span>
-              </div>
-              {i < STEPS.length - 1 && (
-                <div className={`flex-1 h-0.5 mx-1 mb-4 rounded ${i < stepIdx ? 'bg-[#0c4a6e]' : 'bg-slate-200'}`} />
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* Left column */}
-        <div className="space-y-4">
-          {/* Rx Section */}
-          {rx && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="font-semibold text-slate-700 text-sm">Prescription</h2>
-                {rx.verified_at ? (
-                  <span className="flex items-center gap-1 text-xs font-medium text-green-700 bg-green-50 px-2 py-1 rounded-full">
-                    <ShieldCheck size={12} /> Verified
-                  </span>
-                ) : (
-                  <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full font-medium">Pending Review</span>
+                <div>
+                  <h2 className="text-sm font-bold text-surface-800">Packing Checklist</h2>
+                  <p className="text-xs text-surface-400">
+                    {checked.size}/{order.items.length} items verified
+                  </p>
+                </div>
+                {allChecked && (
+                  <span className="ml-auto badge badge-delivered">All checked</span>
                 )}
               </div>
 
-              {/* Confidence */}
-              <div className="mb-3">
-                <div className="flex justify-between text-xs text-slate-500 mb-1">
-                  <span>OCR Confidence</span>
-                  <span className="font-medium">{(rx.ocr_confidence_bps / 100).toFixed(0)}%</span>
+              {/* Progress bar */}
+              <div className="h-1.5 rounded-full bg-surface-100 mb-4 overflow-hidden">
+                <div
+                  className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                  style={{ width: `${(checked.size / order.items.length) * 100}%` }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                {order.items.map(item => (
+                  <label
+                    key={item.medicine_id}
+                    className={clsx(
+                      'flex items-center gap-3 p-3 rounded-2xl cursor-pointer transition-colors',
+                      checked.has(item.medicine_id)
+                        ? 'bg-emerald-50 border border-emerald-200'
+                        : 'bg-surface-50 border border-transparent hover:border-surface-200',
+                    )}
+                  >
+                    <div className={clsx(
+                      'w-5 h-5 rounded-lg border-2 flex items-center justify-center shrink-0 transition-colors',
+                      checked.has(item.medicine_id)
+                        ? 'bg-emerald-500 border-emerald-500'
+                        : 'border-surface-300',
+                    )}>
+                      {checked.has(item.medicine_id) && (
+                        <CheckCircle2 size={12} className="text-white" strokeWidth={3} />
+                      )}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={checked.has(item.medicine_id)}
+                      onChange={e => {
+                        const n = new Set(checked);
+                        e.target.checked ? n.add(item.medicine_id) : n.delete(item.medicine_id);
+                        setChecked(n);
+                      }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={clsx(
+                        'text-sm font-semibold truncate',
+                        checked.has(item.medicine_id) ? 'text-emerald-800 line-through opacity-60' : 'text-surface-800',
+                      )}>
+                        {item.medicine_name}
+                      </p>
+                      <p className="text-xs text-surface-400">Qty: {item.qty}</p>
+                    </div>
+                    {item.requires_rx && (
+                      <span className="badge badge-packed text-[10px]">Rx</span>
+                    )}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Prescription */}
+          {rx && (
+            <div className="card p-5">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 flex items-center justify-center">
+                  <FileText size={15} className="text-purple-600" />
                 </div>
-                <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${rx.ocr_confidence_bps >= 8000 ? 'bg-green-500' : 'bg-amber-500'}`}
-                    style={{ width: `${rx.ocr_confidence_bps / 100}%` }}
-                  />
+                <div>
+                  <h2 className="text-sm font-bold text-surface-800">Prescription</h2>
+                  {rx.doctor_name && (
+                    <p className="text-xs text-surface-400">
+                      Dr. {rx.doctor_name}{rx.hospital_name ? ` · ${rx.hospital_name}` : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="ml-auto">
+                  {rx.verified_at ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold
+                                     text-emerald-700 bg-emerald-50 border border-emerald-200
+                                     rounded-full px-3 py-1">
+                      <ShieldCheck size={12} />
+                      Verified
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-semibold
+                                     text-amber-700 bg-amber-50 border border-amber-200
+                                     rounded-full px-3 py-1">
+                      <ShieldAlert size={12} />
+                      Needs review
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {rx.doctor_name && (
-                <p className="text-xs text-slate-500 mb-2">
-                  Dr. {rx.doctor_name}{rx.hospital_name ? ` · ${rx.hospital_name}` : ''}
-                </p>
-              )}
+              <ConfidenceBar bps={rx.ocr_confidence_bps} />
 
-              {/* Flags */}
               {rx.flags.length > 0 && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3">
-                  {rx.flags.map((f) => (
+                <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-2xl space-y-1.5">
+                  {rx.flags.map(f => (
                     <div key={f.id} className="flex items-start gap-2">
-                      <AlertTriangle size={13} className="text-amber-600 mt-0.5 shrink-0" />
+                      <AlertTriangle size={12} className="text-amber-600 mt-0.5 shrink-0" />
                       <span className="text-xs text-amber-700">{f.message}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Extracted medicines */}
-              <div className="space-y-1.5 mb-4">
-                {rx.items.map((it) => (
-                  <div key={it.id} className="text-xs bg-slate-50 rounded-lg px-3 py-2">
-                    <span className="font-medium text-slate-700">{it.medicine_name}</span>
-                    <span className="text-slate-400 ml-2">{it.dosage} · {it.frequency} · {it.duration_days}d</span>
+              <div className="mt-3 space-y-1.5">
+                {rx.items.map(it => (
+                  <div key={it.id} className="flex items-center gap-2 px-3 py-2 bg-surface-50 rounded-xl">
+                    <div className="w-1.5 h-1.5 rounded-full bg-navy-400 shrink-0" />
+                    <span className="text-xs font-semibold text-surface-700 flex-1">{it.medicine_name}</span>
+                    <span className="text-xs text-surface-400">
+                      {it.dosage} · {it.frequency} · {it.duration_days}d
+                    </span>
                   </div>
                 ))}
               </div>
 
-              {/* Approve/Reject buttons */}
               {!rx.verified_at && (
-                <div className="flex gap-2">
+                <div className="flex gap-2 mt-4">
                   <button
                     onClick={() => verifyRxMutation.mutate(true)}
                     disabled={verifyRxMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-green-600 text-white text-xs font-semibold hover:bg-green-700 disabled:opacity-50"
+                    className="btn btn-emerald btn-md flex-1 gap-1.5"
                   >
-                    <CheckCircle size={14} /> Approve Rx
+                    <CheckCircle2 size={14} /> Approve Rx
                   </button>
                   <button
                     onClick={() => verifyRxMutation.mutate(false)}
                     disabled={verifyRxMutation.isPending}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-red-200 text-red-600 text-xs font-semibold hover:bg-red-50 disabled:opacity-50"
+                    className="btn btn-danger btn-md flex-1 gap-1.5"
                   >
                     <XCircle size={14} /> Reject Rx
                   </button>
@@ -223,111 +356,124 @@ export default function OrderDetailPage() {
           )}
 
           {/* Delivery Address */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <h2 className="font-semibold text-slate-700 text-sm mb-2">Delivery Address</h2>
-            <p className="text-sm text-slate-600">{order.delivery_address.line1}</p>
-            {order.delivery_address.line2 && <p className="text-sm text-slate-600">{order.delivery_address.line2}</p>}
-            <p className="text-sm text-slate-500">{order.delivery_address.city} — {order.delivery_address.pincode}</p>
+          <div className="card p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center">
+                <MapPin size={15} className="text-blue-600" />
+              </div>
+              <h2 className="text-sm font-bold text-surface-800">Delivery Address</h2>
+            </div>
+            <p className="text-sm font-medium text-surface-700">{order.delivery_address.line1}</p>
+            {order.delivery_address.line2 && (
+              <p className="text-sm text-surface-600">{order.delivery_address.line2}</p>
+            )}
+            <p className="text-xs text-surface-400 mt-1">
+              {order.delivery_address.city} — {order.delivery_address.pincode}
+            </p>
           </div>
         </div>
 
-        {/* Right column */}
-        <div className="space-y-4">
-          {/* Packing Checklist */}
-          {(order.status === 'confirmed' || order.status === 'packed') && (
-            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h2 className="font-semibold text-slate-700 text-sm mb-3">Packing Checklist</h2>
-              <div className="space-y-2">
-                {order.items.map((item) => (
-                  <label
-                    key={item.medicine_id}
-                    className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checkedItems.has(item.medicine_id)}
-                      onChange={(e) => {
-                        const next = new Set(checkedItems);
-                        e.target.checked ? next.add(item.medicine_id) : next.delete(item.medicine_id);
-                        setCheckedItems(next);
-                      }}
-                      className="w-4 h-4 rounded accent-[#0c4a6e]"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-700 truncate">{item.medicine_name}</p>
-                      <p className="text-xs text-slate-400">Qty: {item.qty}</p>
+        {/* ── Right (2 cols) ────────────────────────────────── */}
+        <div className="lg:col-span-2 space-y-4">
+
+          {/* Order items + pricing */}
+          <div className="card p-5">
+            <h2 className="text-sm font-bold text-surface-800 mb-3">Order Summary</h2>
+            <div className="space-y-2.5 mb-4">
+              {order.items.map(it => (
+                <div key={it.medicine_id} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-6 h-6 rounded-lg bg-navy-50 flex items-center justify-center shrink-0">
+                      <span className="text-[10px] font-bold text-navy-600">{it.qty}×</span>
                     </div>
-                    {item.requires_rx && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 font-medium">Rx</span>
-                    )}
-                  </label>
-                ))}
+                    <span className="text-xs text-surface-700 font-medium truncate">{it.medicine_name}</span>
+                  </div>
+                  <span className="text-xs font-bold text-surface-800 shrink-0">
+                    {formatPaise(it.unit_price_paise * it.qty)}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="border-t border-surface-100 pt-3 space-y-2">
+              {[
+                ['Subtotal',      order.subtotal_paise],
+                ['Delivery',      order.delivery_fee_paise],
+                ['Platform fee',  order.platform_fee_paise],
+                ['GST',           order.gst_paise],
+              ].map(([label, val]) => (
+                <div key={label as string} className="flex justify-between text-xs text-surface-500">
+                  <span>{label}</span>
+                  <span>{formatPaise(val as number)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-surface-100">
+                <span className="text-sm font-bold text-surface-900">Total</span>
+                <span className="text-sm font-black text-surface-900">{formatPaise(order.total_paise)}</span>
               </div>
-              {!allItemsChecked && (
-                <p className="text-xs text-amber-600 mt-2 text-center">Check all items before proceeding</p>
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          {(next || order.status === 'pending' || order.status === 'confirmed') && (
+            <div className="card p-5 space-y-2.5">
+              <h2 className="text-sm font-bold text-surface-800 mb-1">Actions</h2>
+
+              {next && (
+                <button
+                  onClick={() => transitionMutation.mutate(next)}
+                  disabled={transitionMutation.isPending || !canProceed}
+                  className="btn btn-primary btn-xl w-full"
+                >
+                  {transitionMutation.isPending ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Updating…
+                    </span>
+                  ) : (
+                    <>
+                      {next === 'dispatched' && <Truck size={16} />}
+                      {NEXT_LABEL[order.status]}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {needsCheck && !allChecked && (
+                <p className="text-xs text-amber-600 text-center">
+                  Check all items in the list above to proceed
+                </p>
+              )}
+
+              {(order.status === 'pending' || order.status === 'confirmed') && (
+                <button
+                  onClick={() => transitionMutation.mutate('cancelled')}
+                  disabled={transitionMutation.isPending}
+                  className="btn btn-danger btn-lg w-full"
+                >
+                  <XCircle size={14} /> Cancel Order
+                </button>
               )}
             </div>
           )}
 
-          {/* Order Items + Pricing */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-            <h2 className="font-semibold text-slate-700 text-sm mb-3">Order Summary</h2>
-            <div className="space-y-2 mb-4">
-              {order.items.map((it) => (
-                <div key={it.medicine_id} className="flex justify-between text-sm">
-                  <span className="text-slate-600">{it.medicine_name} ×{it.qty}</span>
-                  <span className="text-slate-700 font-medium">{formatPaise(it.unit_price_paise * it.qty)}</span>
+          {/* Rider info when dispatched */}
+          {order.status === 'dispatched' && (
+            <div className="card p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-navy-50 flex items-center justify-center">
+                  <User size={18} className="text-navy-600" />
                 </div>
-              ))}
-            </div>
-            <div className="border-t border-slate-100 pt-3 space-y-1.5">
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>Subtotal</span>
-                <span>{formatPaise(order.subtotal_paise)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>Delivery fee</span>
-                <span>{formatPaise(order.delivery_fee_paise)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>Platform fee</span>
-                <span>{formatPaise(order.platform_fee_paise)}</span>
-              </div>
-              <div className="flex justify-between text-xs text-slate-500">
-                <span>GST</span>
-                <span>{formatPaise(order.gst_paise)}</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold text-slate-800 pt-1 border-t border-slate-100">
-                <span>Total</span>
-                <span>{formatPaise(order.total_paise)}</span>
+                <div>
+                  <p className="text-sm font-semibold text-surface-800">Rider Assigned</p>
+                  <p className="text-xs text-surface-400">En route to customer</p>
+                </div>
+                <span className="live-dot ml-auto" />
               </div>
             </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-2">
-            {next && (
-              <button
-                onClick={() => transitionMutation.mutate(next)}
-                disabled={
-                  transitionMutation.isPending ||
-                  ((order.status === 'confirmed' || order.status === 'packed') && !allItemsChecked)
-                }
-                className="w-full py-3 rounded-2xl bg-[#0c4a6e] text-white font-semibold text-sm hover:bg-[#0e5f8a] disabled:opacity-40 transition-colors"
-              >
-                {NEXT_LABEL[order.status]}
-              </button>
-            )}
-            {(order.status === 'pending' || order.status === 'confirmed') && (
-              <button
-                onClick={() => transitionMutation.mutate('cancelled')}
-                disabled={transitionMutation.isPending}
-                className="w-full py-3 rounded-2xl border border-red-200 text-red-600 font-semibold text-sm hover:bg-red-50 disabled:opacity-40 transition-colors"
-              >
-                Cancel Order
-              </button>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>

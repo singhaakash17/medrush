@@ -9,8 +9,8 @@ import { ordersApi } from '@/api/orders';
 import { logisticsApi } from '@/api/logistics';
 import { SlaTimer } from '@/components/SlaTimer';
 import { formatPaise } from '@/lib/money';
+import { T } from '@/theme';
 import type { Order, OrderItem, Assignment } from '@/types';
-import { useCartStore } from '@/store/cart';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:3001';
 const WS_BASE = API_BASE.replace(/^http/, 'ws');
@@ -28,7 +28,7 @@ function StatusStepper({ currentStatus }: { currentStatus: string }) {
   if (currentStatus === 'cancelled') {
     return (
       <View style={styles.cancelledBanner}>
-        <Ionicons name="close-circle" size={20} color="#EF4444" />
+        <Ionicons name="close-circle" size={20} color={T.Colors.crimson} />
         <Text style={styles.cancelledText}>Order Cancelled</Text>
       </View>
     );
@@ -42,7 +42,7 @@ function StatusStepper({ currentStatus }: { currentStatus: string }) {
           <View key={step.key} style={styles.stepRow}>
             <View style={styles.stepLeft}>
               <View style={[styles.stepCircle, done && styles.stepCircleDone, active && styles.stepCircleActive]}>
-                <Ionicons name={step.icon} size={16} color={done ? '#fff' : '#D1D5DB'} />
+                <Ionicons name={step.icon} size={16} color={done ? T.Colors.textInverse : T.Colors.border} />
               </View>
               {idx < STATUS_STEPS.length - 1 && (
                 <View style={[styles.stepLine, done && styles.stepLineDone]} />
@@ -58,9 +58,8 @@ function StatusStepper({ currentStatus }: { currentStatus: string }) {
   );
 }
 
-// Mock order simulation for checkout-generated orders not yet in DB
 const MOCK_STATUS_SEQUENCE = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'] as const;
-const MOCK_STEP_DELAY_MS = 8_000; // advance every 8 s for demo
+const MOCK_STEP_DELAY_MS = 8_000;
 
 function useMockOrder(id: string) {
   const [stepIdx, setStepIdx] = useState(0);
@@ -79,7 +78,6 @@ export default function TrackingScreen() {
   const wsRef = useRef<WebSocket | null>(null);
   const [riderLocation, setRiderLocation] = useState<{ lat: number; lon: number } | null>(null);
 
-  // Orders created at checkout use the "MR-" prefix and don't exist in the DB yet
   const isMockOrder = typeof id === 'string' && id.startsWith('MR-');
   const mockStatus = useMockOrder(id ?? '');
 
@@ -102,7 +100,6 @@ export default function TrackingScreen() {
     enabled: !!order && ['dispatched', 'delivered'].includes(order.status),
   });
 
-  // Real-time WebSocket (only for real DB orders)
   useEffect(() => {
     if (!id || isMockOrder) return;
     const ws = new WebSocket(`${WS_BASE}/ws/orders/${id}`);
@@ -133,19 +130,17 @@ export default function TrackingScreen() {
     };
   }, [id, isMockOrder]);
 
-  // For mock orders render a fully simulated screen
   if (isMockOrder) {
-    const isActive = mockStatus !== 'delivered';
     return (
       <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()}>
-            <Ionicons name="arrow-back" size={22} color="#0C4A6E" />
+          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+            <Ionicons name="arrow-back" size={20} color={T.Colors.textPrimary} />
           </TouchableOpacity>
           <View style={styles.headerText}>
-            <Text style={styles.title}>Track Order #{id}</Text>
+            <Text style={styles.title}>Order #{id}</Text>
             <Text style={styles.subtitle}>
-              {mockStatus === 'delivered' ? '✓ Delivered' : 'ETA: ~15 min'}
+              {mockStatus === 'delivered' ? '✓ Delivered' : '⚡ ETA ~15 min'}
             </Text>
           </View>
         </View>
@@ -166,7 +161,7 @@ export default function TrackingScreen() {
         {mockStatus === 'dispatched' && (
           <View style={styles.riderCard}>
             <View style={styles.riderAvatar}>
-              <Ionicons name="bicycle" size={24} color="#0EA5E9" />
+              <Ionicons name="bicycle" size={24} color={T.Colors.navyMid} />
             </View>
             <View style={styles.riderInfo}>
               <Text style={styles.riderName}>Ravi Kumar is on the way</Text>
@@ -178,7 +173,7 @@ export default function TrackingScreen() {
 
         {mockStatus === 'dispatched' && (
           <View style={styles.otpCard}>
-            <Ionicons name="key-outline" size={22} color="#F59E0B" />
+            <Ionicons name="key-outline" size={22} color={T.Colors.amber} />
             <View style={styles.otpInfo}>
               <Text style={styles.otpTitle}>Delivery OTP: 4821</Text>
               <Text style={styles.otpSub}>Share this OTP with the rider to confirm receipt</Text>
@@ -189,7 +184,7 @@ export default function TrackingScreen() {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Delivery Address</Text>
           <View style={styles.addressRow}>
-            <Ionicons name="location-outline" size={18} color="#0EA5E9" />
+            <Ionicons name="location-outline" size={18} color={T.Colors.navyMid} />
             <View>
               <Text style={styles.addressLine}>2nd Floor, 12th Main, Indiranagar</Text>
               <Text style={styles.addressSub}>Bengaluru, 560008</Text>
@@ -199,7 +194,7 @@ export default function TrackingScreen() {
 
         {mockStatus === 'delivered' && (
           <TouchableOpacity style={styles.rateBtn}>
-            <Ionicons name="star-outline" size={18} color="#F59E0B" />
+            <Ionicons name="star-outline" size={18} color={T.Colors.amber} />
             <Text style={styles.rateBtnText}>Rate this delivery</Text>
           </TouchableOpacity>
         )}
@@ -208,7 +203,11 @@ export default function TrackingScreen() {
   }
 
   if (isLoading || !order) {
-    return <View style={styles.loading}><ActivityIndicator size="large" color="#0EA5E9" /></View>;
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color={T.Colors.navyMid} />
+      </View>
+    );
   }
 
   const isActive = !['delivered', 'cancelled'].includes(order.status);
@@ -216,25 +215,23 @@ export default function TrackingScreen() {
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={22} color="#0C4A6E" />
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={20} color={T.Colors.textPrimary} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Track Order #{order.short_code}</Text>
+          <Text style={styles.title}>Order #{order.short_code}</Text>
           <Text style={styles.subtitle}>
             {order.status === 'delivered' ? '✓ Delivered' :
              order.status === 'cancelled' ? 'Cancelled' :
-             `ETA: ${assignment?.eta_seconds ? `~${Math.ceil(assignment.eta_seconds / 60)} min` : '15 min'}`}
+             `⚡ ETA: ${assignment?.eta_seconds ? `~${Math.ceil(assignment.eta_seconds / 60)} min` : '15 min'}`}
           </Text>
         </View>
       </View>
 
-      {/* SLA Timer */}
       {isActive && (
         <SlaTimer slaTargetAt={order.sla_target_at} status={order.status} />
       )}
 
-      {/* Rider live indicator */}
       {riderLocation && order.status === 'dispatched' && (
         <View style={styles.liveCard}>
           <View style={styles.livePulse} />
@@ -245,17 +242,15 @@ export default function TrackingScreen() {
         </View>
       )}
 
-      {/* Status stepper */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Order Status</Text>
         <StatusStepper currentStatus={order.status} />
       </View>
 
-      {/* Rider card when dispatched */}
       {assignment && order.status === 'dispatched' && (
         <View style={styles.riderCard}>
           <View style={styles.riderAvatar}>
-            <Ionicons name="bicycle" size={24} color="#0EA5E9" />
+            <Ionicons name="bicycle" size={24} color={T.Colors.navyMid} />
           </View>
           <View style={styles.riderInfo}>
             <Text style={styles.riderName}>Rider is on the way</Text>
@@ -269,10 +264,9 @@ export default function TrackingScreen() {
         </View>
       )}
 
-      {/* OTP notice */}
       {order.status === 'dispatched' && (
         <View style={styles.otpCard}>
-          <Ionicons name="key-outline" size={22} color="#F59E0B" />
+          <Ionicons name="key-outline" size={22} color={T.Colors.amber} />
           <View style={styles.otpInfo}>
             <Text style={styles.otpTitle}>Delivery OTP Required</Text>
             <Text style={styles.otpSub}>Share the 4-digit OTP with the rider to confirm receipt</Text>
@@ -280,7 +274,6 @@ export default function TrackingScreen() {
         </View>
       )}
 
-      {/* Order items */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Items Ordered</Text>
         {(items ?? []).map((item) => (
@@ -307,8 +300,8 @@ export default function TrackingScreen() {
         ))}
         {order.discount_paise > 0 && (
           <View style={styles.summaryRow}>
-            <Text style={[styles.summaryLabel, { color: '#10B981' }]}>Discount</Text>
-            <Text style={[styles.summaryValue, { color: '#10B981' }]}>-{formatPaise(order.discount_paise)}</Text>
+            <Text style={[styles.summaryLabel, { color: T.Colors.emerald }]}>Discount</Text>
+            <Text style={[styles.summaryValue, { color: T.Colors.emerald }]}>-{formatPaise(order.discount_paise)}</Text>
           </View>
         )}
         <View style={[styles.summaryRow, styles.totalRow]}>
@@ -317,11 +310,10 @@ export default function TrackingScreen() {
         </View>
       </View>
 
-      {/* Delivery address */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Delivery Address</Text>
         <View style={styles.addressRow}>
-          <Ionicons name="location-outline" size={18} color="#0EA5E9" />
+          <Ionicons name="location-outline" size={18} color={T.Colors.navyMid} />
           <View>
             <Text style={styles.addressLine}>{(order.delivery_address as any).line1}</Text>
             <Text style={styles.addressSub}>
@@ -331,10 +323,9 @@ export default function TrackingScreen() {
         </View>
       </View>
 
-      {/* Rate button */}
       {order.status === 'delivered' && (
         <TouchableOpacity style={styles.rateBtn}>
-          <Ionicons name="star-outline" size={18} color="#F59E0B" />
+          <Ionicons name="star-outline" size={18} color={T.Colors.amber} />
           <Text style={styles.rateBtnText}>Rate this delivery</Text>
         </TouchableOpacity>
       )}
@@ -343,92 +334,113 @@ export default function TrackingScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#F0F9FF' },
-  content: { padding: 16, paddingBottom: 40 },
+  screen: { flex: 1, backgroundColor: T.Colors.surface },
+  content: { padding: T.Spacing.lg, paddingBottom: 40 },
   loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md, marginBottom: T.Spacing.md,
+  },
+  backBtn: {
+    width: 36, height: 36, borderRadius: T.Radius.sm,
+    backgroundColor: T.Colors.white,
+    alignItems: 'center', justifyContent: 'center',
+    ...T.Shadow.card,
+  },
   headerText: { flex: 1 },
-  title: { fontSize: 17, fontWeight: '700', color: '#0C4A6E' },
-  subtitle: { fontSize: 13, color: '#0EA5E9', marginTop: 2 },
+  title: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  subtitle: { fontSize: T.FontSize.sm, color: T.Colors.navyMid, marginTop: 2, fontWeight: T.FontWeight.semibold },
+
   liveCard: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#ECFDF5', borderRadius: 10, padding: 10, marginBottom: 12,
+    backgroundColor: T.Colors.emeraldLight,
+    borderRadius: T.Radius.md, padding: 10, marginBottom: T.Spacing.md,
   },
-  livePulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981' },
-  liveText: { flex: 1, fontSize: 12, color: '#065F46', fontWeight: '600' },
-  liveCoords: { fontSize: 11, color: '#6B7280' },
+  livePulse: { width: 10, height: 10, borderRadius: 5, backgroundColor: T.Colors.emerald },
+  liveText: { flex: 1, fontSize: T.FontSize.xs, color: T.Colors.emeraldDark, fontWeight: T.FontWeight.semibold },
+  liveCoords: { fontSize: T.FontSize['2xs'], color: T.Colors.textTertiary },
+
   card: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 16, marginBottom: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    backgroundColor: T.Colors.white,
+    borderRadius: T.Radius.lg,
+    padding: T.Spacing.lg,
+    marginBottom: T.Spacing.md,
+    ...T.Shadow.card,
   },
-  cardTitle: { fontSize: 15, fontWeight: '700', color: '#0C4A6E', marginBottom: 14 },
+  cardTitle: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary, marginBottom: T.Spacing.md },
+
   stepper: {},
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 0 },
-  stepLeft: { alignItems: 'center', width: 32, marginRight: 12 },
+  stepLeft: { alignItems: 'center', width: 32, marginRight: T.Spacing.md },
   stepCircle: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.Colors.borderLight, alignItems: 'center', justifyContent: 'center',
   },
-  stepCircleDone: { backgroundColor: '#0EA5E9' },
-  stepCircleActive: { backgroundColor: '#0C4A6E' },
-  stepLine: { width: 2, minHeight: 20, backgroundColor: '#E5E7EB', marginVertical: 4 },
-  stepLineDone: { backgroundColor: '#0EA5E9' },
-  stepLabel: { flex: 1, fontSize: 13, color: '#9CA3AF', paddingVertical: 6 },
-  stepLabelDone: { color: '#374151' },
-  stepLabelActive: { color: '#0C4A6E', fontWeight: '700' },
+  stepCircleDone: { backgroundColor: T.Colors.navyMid },
+  stepCircleActive: { backgroundColor: T.Colors.navy },
+  stepLine: { width: 2, minHeight: 20, backgroundColor: T.Colors.border, marginVertical: 4 },
+  stepLineDone: { backgroundColor: T.Colors.navyMid },
+  stepLabel: { flex: 1, fontSize: T.FontSize.sm, color: T.Colors.textTertiary, paddingVertical: 6 },
+  stepLabelDone: { color: T.Colors.textSecondary },
+  stepLabelActive: { color: T.Colors.textPrimary, fontWeight: T.FontWeight.bold },
+
   cancelledBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#FEF2F2', borderRadius: 10, padding: 12,
+    backgroundColor: T.Colors.crimsonLight, borderRadius: T.Radius.md, padding: T.Spacing.md,
   },
-  cancelledText: { fontSize: 15, fontWeight: '600', color: '#991B1B' },
+  cancelledText: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.semibold, color: '#991B1B' },
+
   riderCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#fff', borderRadius: 14, padding: 14, marginBottom: 12,
-    borderWidth: 1, borderColor: '#BAE6FD',
+    flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md,
+    backgroundColor: T.Colors.white, borderRadius: T.Radius.lg, padding: T.Spacing.md, marginBottom: T.Spacing.md,
+    borderWidth: 1, borderColor: T.Colors.navyLight,
+    ...T.Shadow.card,
   },
   riderAvatar: {
     width: 48, height: 48, borderRadius: 24,
-    backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.Colors.navyLight, alignItems: 'center', justifyContent: 'center',
   },
   riderInfo: { flex: 1 },
-  riderName: { fontSize: 15, fontWeight: '700', color: '#0C4A6E' },
-  riderEta: { fontSize: 13, color: '#0EA5E9', marginTop: 2 },
-  liveDot: {
-    width: 10, height: 10, borderRadius: 5, backgroundColor: '#10B981',
-  },
+  riderName: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  riderEta: { fontSize: T.FontSize.sm, color: T.Colors.navyMid, marginTop: 2, fontWeight: T.FontWeight.semibold },
+  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: T.Colors.emerald },
+
   otpCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', gap: T.Spacing.md,
+    backgroundColor: T.Colors.amberLight, borderRadius: T.Radius.md, padding: T.Spacing.md, marginBottom: T.Spacing.md,
     borderWidth: 1, borderColor: '#FDE68A',
   },
   otpInfo: { flex: 1 },
-  otpTitle: { fontSize: 14, fontWeight: '700', color: '#92400E' },
-  otpSub: { fontSize: 12, color: '#78350F', marginTop: 2 },
+  otpTitle: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.bold, color: '#92400E' },
+  otpSub: { fontSize: T.FontSize.xs, color: '#78350F', marginTop: 2 },
+
   itemRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
   qtyBadge: {
-    backgroundColor: '#EFF6FF', borderRadius: 6, paddingHorizontal: 6,
-    paddingVertical: 2, minWidth: 28, alignItems: 'center',
+    backgroundColor: T.Colors.navyLight, borderRadius: T.Radius.sm,
+    paddingHorizontal: 6, paddingVertical: 2, minWidth: 28, alignItems: 'center',
   },
-  qtyText: { fontSize: 12, fontWeight: '700', color: '#0EA5E9' },
-  itemName: { flex: 1, fontSize: 13, color: '#374151' },
-  rxTag: { backgroundColor: '#FEF3C7', borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
-  rxTagText: { fontSize: 10, fontWeight: '700', color: '#92400E' },
-  itemPrice: { fontSize: 13, fontWeight: '600', color: '#111827' },
-  divider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 10 },
+  qtyText: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.bold, color: T.Colors.navyMid },
+  itemName: { flex: 1, fontSize: T.FontSize.sm, color: T.Colors.textSecondary },
+  rxTag: { backgroundColor: T.Colors.amberLight, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1 },
+  rxTagText: { fontSize: 10, fontWeight: T.FontWeight.black, color: '#92400E' },
+  itemPrice: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.semibold, color: T.Colors.textPrimary },
+
+  divider: { height: 1, backgroundColor: T.Colors.borderLight, marginVertical: 10 },
   summaryRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  summaryLabel: { fontSize: 13, color: '#6B7280' },
-  summaryValue: { fontSize: 13, color: '#374151' },
-  totalRow: { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 10, marginTop: 4 },
-  totalLabel: { fontSize: 15, fontWeight: '700', color: '#0C4A6E' },
-  totalValue: { fontSize: 15, fontWeight: '700', color: '#0C4A6E' },
+  summaryLabel: { fontSize: T.FontSize.sm, color: T.Colors.textTertiary },
+  summaryValue: { fontSize: T.FontSize.sm, color: T.Colors.textSecondary },
+  totalRow: { borderTopWidth: 1, borderTopColor: T.Colors.border, paddingTop: 10, marginTop: 4 },
+  totalLabel: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+  totalValue: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.bold, color: T.Colors.textPrimary },
+
   addressRow: { flexDirection: 'row', gap: 10 },
-  addressLine: { fontSize: 14, fontWeight: '600', color: '#374151' },
-  addressSub: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  addressLine: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
+  addressSub: { fontSize: T.FontSize.sm, color: T.Colors.textTertiary, marginTop: 2 },
+
   rateBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: '#FFFBEB', borderRadius: 12, padding: 14,
-    borderWidth: 1, borderColor: '#FDE68A', marginBottom: 12,
+    backgroundColor: T.Colors.amberLight, borderRadius: T.Radius.md, padding: T.Spacing.md,
+    borderWidth: 1, borderColor: '#FDE68A', marginBottom: T.Spacing.md,
   },
-  rateBtnText: { fontSize: 15, fontWeight: '600', color: '#92400E' },
+  rateBtnText: { fontSize: T.FontSize.md, fontWeight: T.FontWeight.semibold, color: '#92400E' },
 });

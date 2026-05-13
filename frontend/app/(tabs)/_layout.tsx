@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { View, Text, StyleSheet } from 'react-native';
 import { useCartStore } from '@/store/cart';
+import { T } from '@/theme';
 
 function CartBadge({ color, size }: { color: string; size: number }) {
   const count = useCartStore((s) => s.itemCount());
@@ -21,12 +22,20 @@ export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#0EA5E9',
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: { borderTopWidth: 1, borderTopColor: '#F3F4F6', paddingBottom: 4, height: 60 },
-        headerStyle: { backgroundColor: '#fff' },
-        headerTintColor: '#111827',
-        headerTitleStyle: { fontWeight: '700' },
+        tabBarActiveTintColor: T.Colors.navyMid,
+        tabBarInactiveTintColor: T.Colors.textTertiary,
+        tabBarStyle: {
+          borderTopWidth: 1,
+          borderTopColor: T.Colors.border,
+          paddingBottom: 6,
+          height: 64,
+          backgroundColor: T.Colors.white,
+        },
+        tabBarLabelStyle: { fontSize: T.FontSize.xs, fontWeight: T.FontWeight.semibold },
+        headerStyle: { backgroundColor: T.Colors.white },
+        headerTintColor: T.Colors.textPrimary,
+        headerTitleStyle: { fontWeight: T.FontWeight.black, fontSize: T.FontSize.lg },
+        headerShadowVisible: false,
       }}
     >
       <Tabs.Screen
@@ -73,7 +82,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -4,
     right: -6,
-    backgroundColor: '#EF4444',
+    backgroundColor: T.Colors.crimson,
     borderRadius: 8,
     minWidth: 16,
     height: 16,
@@ -81,5 +90,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 3,
   },
-  badgeText: { color: '#fff', fontSize: 9, fontWeight: '700' },
+  badgeText: { color: T.Colors.textInverse, fontSize: 9, fontWeight: T.FontWeight.black },
 });

@@ -1,10 +1,26 @@
 from fastapi import APIRouter, Depends, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.deps import get_async_session
-from app.modules.identity.schemas import PrincipalOut, RoleAssignmentOut
+from app.modules.identity.schemas import (
+    PrincipalOut, RoleAssignmentOut, OtpSendIn, OtpVerifyIn, OtpVerifyOut,
+)
 from app.modules.identity import service
 
 router = APIRouter()
+
+
+@router.post("/otp/send", status_code=200)
+async def otp_send(payload: OtpSendIn) -> dict:
+    await service.send_otp(payload.phone_e164)
+    return {"message": "OTP sent"}
+
+
+@router.post("/otp/verify", response_model=OtpVerifyOut)
+async def otp_verify(
+    payload: OtpVerifyIn,
+    session: AsyncSession = Depends(get_async_session),
+) -> OtpVerifyOut:
+    return await service.verify_otp(session, payload.phone_e164, payload.otp)
 
 
 @router.get("/me", response_model=PrincipalOut)

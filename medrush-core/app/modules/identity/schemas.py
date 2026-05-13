@@ -1,5 +1,28 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from datetime import datetime
+import re
+
+
+class OtpSendIn(BaseModel):
+    phone_e164: str
+
+    @field_validator("phone_e164")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        if not re.match(r"^\+[1-9]\d{6,14}$", v):
+            raise ValueError("Invalid phone number — must be E.164 format e.g. +919876543210")
+        return v
+
+
+class OtpVerifyIn(BaseModel):
+    phone_e164: str
+    otp: str
+
+
+class OtpVerifyOut(BaseModel):
+    principal_id: str
+    phone_e164: str
+    role: str
 
 
 class PrincipalOut(BaseModel):
