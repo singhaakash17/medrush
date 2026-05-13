@@ -19,7 +19,7 @@ from app.modules.order.repository import (
     append_status_history, update_order_status, create_rating,
 )
 from app.modules.order.schemas import (
-    OrderOut, OrderItemOut, OrderStatusHistoryOut,
+    OrderOut, OrderWithItemsOut, OrderItemOut, OrderStatusHistoryOut,
     PlaceOrderIn, UpdateOrderStatusIn, RateOrderIn,
 )
 from app.modules.order.models import Order, OrderItem, OrderRating
@@ -27,6 +27,7 @@ from app.modules.inventory.repository import reserve_stock, release_reservation,
 from app.modules.catalog.repository import get_medicine
 from app.modules.ws.manager import manager
 from app.kafka.events import publish_event
+from app.modules.notification.service import send_order_status_push
 from app.lib.errors import NotFoundError, AppValidationError, ForbiddenError
 
 SLA_MINUTES = 15
@@ -225,6 +226,18 @@ async def transition_status(
         "actor_id": actor_id,
     })
 
+    # Push notification to customer (best-effort, never blocks order flow)
+    try:
+        await send_order_status_push(
+            session,
+            principal_id=order.principal_id,
+            order_id=order_id,
+            order_short_code=order_out.short_code,
+            new_status=payload.status,
+        )
+    except Exception:
+        pass
+
     return order_out
 
 
@@ -241,7 +254,7 @@ async def get_user_orders(session: AsyncSession, principal_id: str) -> list[Orde
 
 async def get_pharmacy_orders(
     session: AsyncSession, pharmacy_id: str, statuses: list[str] | None = None
-) -> list[OrderOut]:
+) -> list[OrderWithItemsOut]:
     return await list_orders_by_pharmacy(session, pharmacy_id, statuses)
 
 

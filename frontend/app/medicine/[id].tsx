@@ -40,6 +40,9 @@ export default function MedicineDetailScreen() {
   });
 
   const mockMed = MEDICINES.find((m) => m.id === id);
+  // `isRealMedicine` is true only when the catalog API returned data — meaning
+  // the ID is known to the backend and can be ordered.
+  const isRealMedicine = !!apiMedicine;
   const medicine = apiMedicine ?? (mockMed ? {
     id: mockMed.id,
     brand_name: mockMed.brand_name,
@@ -60,6 +63,13 @@ export default function MedicineDetailScreen() {
 
   const handleAddToCart = () => {
     if (!medicine) return;
+    if (!isRealMedicine) {
+      Alert.alert(
+        'Not Available',
+        'This medicine is not currently available for online ordering at nearby pharmacies. Try searching for an alternative.',
+      );
+      return;
+    }
     addItem({
       medicine_id: medicine.id,
       medicine_name: medicine.brand_name,
@@ -69,7 +79,7 @@ export default function MedicineDetailScreen() {
       unit_price_paise: medicine.mrp_paise,
       mrp_paise: medicine.mrp_paise,
       rx_required: medicine.rx_required ?? false,
-      pharmacy_id: DEFAULT_PHARMACY.pharmacy_id,
+      pharmacy_id: DEFAULT_PHARMACY.id,
       pharmacy_name: DEFAULT_PHARMACY.name,
     });
     Alert.alert('Added to cart', `${medicine.brand_name} added to your cart.`);
@@ -188,9 +198,13 @@ export default function MedicineDetailScreen() {
       {!medicine.is_discontinued && (
         <View style={styles.footer}>
           <Button
-            title={qtyInCart > 0
-              ? `In Cart (${qtyInCart}) — Add More`
-              : (medicine.rx_required ? 'Upload Rx & Add to Cart' : 'Add to Cart')}
+            title={
+              !isRealMedicine
+                ? 'Not Available for Online Order'
+                : qtyInCart > 0
+                  ? `In Cart (${qtyInCart}) — Add More`
+                  : (medicine.rx_required ? 'Upload Rx & Add to Cart' : 'Add to Cart')
+            }
             onPress={handleAddToCart}
           />
         </View>

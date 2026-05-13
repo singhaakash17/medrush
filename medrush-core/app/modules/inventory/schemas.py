@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from datetime import date, datetime
-from typing import Literal
+from typing import Literal, Optional
 
 
 class InventoryItemOut(BaseModel):
@@ -66,3 +66,39 @@ class InventoryLedgerOut(BaseModel):
     occurred_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ReceiveBatchIn(BaseModel):
+    batch_no: str
+    expiry_date: date
+    qty_received: int
+    manufacture_date: Optional[date] = None
+    cost_paise: Optional[int] = None          # cost per unit from supplier
+    notes: Optional[str] = None
+
+
+class LowStockAlert(BaseModel):
+    pharmacy_id: str
+    medicine_id: str
+    qty_available: int
+    reorder_level: int
+    current_expiry: Optional[date]
+
+    model_config = {"from_attributes": True}
+
+
+class ExpiryAlert(BaseModel):
+    id: str
+    pharmacy_id: str
+    medicine_id: str
+    batch_no: str
+    expiry_date: date
+    qty_remaining: int
+    days_until_expiry: int
+
+    model_config = {"from_attributes": True}
+
+
+class AlertsOut(BaseModel):
+    low_stock: list[LowStockAlert]
+    expiring_soon: list[ExpiryAlert]

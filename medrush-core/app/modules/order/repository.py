@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from datetime import datetime, timezone
 from app.modules.order.models import Order, OrderItem, OrderStatusHistory, OrderRating
-from app.modules.order.schemas import OrderOut, OrderItemOut, OrderStatusHistoryOut
+from app.modules.order.schemas import OrderOut, OrderWithItemsOut, OrderItemOut, OrderStatusHistoryOut
 
 
 async def get_order_by_id(session: AsyncSession, order_id: str) -> OrderOut | None:
@@ -25,13 +25,27 @@ async def list_orders_by_user(session: AsyncSession, principal_id: str) -> list[
 
 async def list_orders_by_pharmacy(
     session: AsyncSession, pharmacy_id: str, statuses: list[str] | None = None
-) -> list[OrderOut]:
+) -> list[OrderWithItemsOut]:
     q = select(Order).where(Order.pharmacy_id == pharmacy_id)
     if statuses:
         q = q.where(Order.status.in_(statuses))
     q = q.order_by(Order.placed_at.desc())
     result = await session.execute(q)
-    return [OrderOut.model_validate(row) for row in result.scalars()]
+    orders = list(result.scalars())
+
+    # Fetch items for all returned orders in one query
+    order_ids = [o.id for o in orders]
+    items_result = await session.execute(
+        select(OrderItem).where(OrderItem.order_id.in_(order_ids))
+    )
+    items_by_order: dict[str, list[OrderItemOut]] = {}
+    for item in items_result.scalars():
+        items_by_order.setdefault(item.order_id, []).append(OrderItemOut.model_validate(item))
+
+    return [
+        OrderWithItemsOut(**OrderOut.model_validate(o).model_dump(), items=items_by_order.get(o.id, []))
+        for o in orders
+    ]
 
 
 async def create_order(session: AsyncSession, order: Order) -> Order:

@@ -47,7 +47,7 @@ const NEARBY_PHARMACIES = [...PHARMACIES]
   .sort((a, b) => a.distance_m - b.distance_m)
   .slice(0, 4);
 
-const POPULAR_MEDICINE_IDS = ['med_001', 'med_007', 'med_013', 'med_028', 'med_032', 'med_019'];
+const POPULAR_MEDICINE_IDS = ['med_dolo650', 'med_azithral500', 'med_pan40', 'med_cetzine10', 'med_shelcal500', 'med_glycomet500'];
 const POPULAR_MEDICINES = MEDICINES.filter((m) => POPULAR_MEDICINE_IDS.includes(m.id));
 
 // ─── Sub-components ────────────────────────────────────────────────────────────

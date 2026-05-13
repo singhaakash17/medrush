@@ -40,6 +40,7 @@ const config: Config = {
         crimson: {
           50:  '#fff1f2',
           100: '#ffe4e6',
+          200: '#fecdd3',
           400: '#fb7185',
           500: '#EF4444',
           600: '#dc2626',

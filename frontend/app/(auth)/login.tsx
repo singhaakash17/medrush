@@ -108,6 +108,15 @@ export default function LoginScreen() {
           {' '}and{' '}
           <Text style={s.termsLink}>Privacy Policy</Text>
         </Text>
+
+        {/* Rider login entry point */}
+        <TouchableOpacity
+          style={s.riderLink}
+          onPress={() => router.push('/(auth)/rider-login')}
+          activeOpacity={0.7}
+        >
+          <Text style={s.riderLinkText}>🛵  Are you a delivery partner?  →</Text>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -228,7 +237,19 @@ const s = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
     lineHeight: 18,
-    paddingBottom: T.Spacing.xl,
+    paddingBottom: T.Spacing.md,
   },
   termsLink: { color: 'rgba(255,255,255,0.5)', fontWeight: T.FontWeight.semibold },
+
+  // Rider CTA
+  riderLink: {
+    alignItems: 'center',
+    paddingVertical: T.Spacing.md,
+    paddingBottom: T.Spacing['2xl'],
+  },
+  riderLinkText: {
+    fontSize: T.FontSize.sm,
+    color: 'rgba(255,255,255,0.45)',
+    fontWeight: T.FontWeight.medium,
+  },
 });

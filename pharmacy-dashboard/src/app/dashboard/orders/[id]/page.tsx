@@ -6,8 +6,12 @@ import { clsx } from 'clsx';
 import {
   ChevronLeft, CheckCircle2, XCircle, AlertTriangle,
   ShieldCheck, ShieldAlert, MapPin, Package,
-  FileText, Truck, User, Clock,
+  FileText, Truck, User, Clock, Printer,
 } from 'lucide-react';
+import {
+  computeLineItem, computeBillTotals, saveBill, getNextBillNo,
+  loadPharmacyProfile, formatExpiry,
+} from '@/lib/billing';
 import { api, formatPaise, formatTime } from '@/lib/api';
 import { SlaCountdown } from '@/components/SlaCountdown';
 
@@ -119,6 +123,75 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [billingBusy, setBillingBusy] = useState(false);
+
+  const pharmacyId = typeof window !== 'undefined' ? (localStorage.getItem('pharmacy_id') ?? '') : '';
+  const actorId    = typeof window !== 'undefined' ? (localStorage.getItem('user_id') ?? 'system') : 'system';
+
+  const handlePrintInvoice = async () => {
+    if (!order) return;
+    setBillingBusy(true);
+    try {
+      const profile = loadPharmacyProfile();
+      const billId  = `bill_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+      const billNo  = getNextBillNo(pharmacyId);
+
+      const items = order.items.map((item, idx) =>
+        computeLineItem(
+          item.medicine_id,
+          item.medicine_name,
+          'Unit',      // packing — not in order data
+          '—',         // batch_no — not in order data
+          '—',         // expiry — not in order data
+          item.unit_price_paise,
+          item.qty,
+          0,           // no discount on online orders (price already set)
+          5,           // 5% GST default
+        )
+      );
+
+      const totals = computeBillTotals(items);
+
+      const addrLine = [
+        order.delivery_address.line1,
+        order.delivery_address.line2,
+        `${order.delivery_address.city} - ${order.delivery_address.pincode}`,
+      ].filter(Boolean).join(', ');
+
+      const bill = {
+        id: billId,
+        bill_no: billNo,
+        pharmacy_id: pharmacyId,
+        bill_type: 'online' as const,
+        order_id: order.id,
+        pharmacy: {
+          name: profile.name ?? 'Pharmacy',
+          line1: profile.line1 ?? '',
+          line2: profile.line2,
+          city: profile.city ?? '',
+          mobile: profile.mobile ?? '',
+          gstin: profile.gstin ?? '',
+          pan: profile.pan ?? '',
+          license20: profile.license20 ?? '',
+          license21: profile.license21 ?? '',
+          affiliated_with: profile.affiliated_with,
+        },
+        patient_name: 'Online Customer',
+        patient_mobile: '',
+        patient_address: addrLine,
+        billed_by: actorId,
+        payment_method: 'UPI' as const,
+        items,
+        ...totals,
+        created_at: new Date().toISOString(),
+      };
+
+      await saveBill(bill);
+      router.push(`/dashboard/billing/${billId}?print=1`);
+    } finally {
+      setBillingBusy(false);
+    }
+  };
 
   const { data: order, isLoading } = useQuery<Order>({
     queryKey: ['order', id],
@@ -412,6 +485,24 @@ export default function OrderDetailPage() {
               </div>
             </div>
           </div>
+
+          {/* Print Invoice — available once order is packed or beyond */}
+          {['packed', 'dispatched', 'delivered'].includes(order.status) && (
+            <div className="card p-5">
+              <h2 className="text-sm font-bold text-surface-800 mb-3">Invoice</h2>
+              <button
+                onClick={handlePrintInvoice}
+                disabled={billingBusy}
+                className="btn btn-primary btn-lg w-full flex items-center justify-center gap-2"
+              >
+                <Printer size={15} />
+                {billingBusy ? 'Generating…' : 'Print Invoice'}
+              </button>
+              <p className="text-xs text-surface-400 text-center mt-2">
+                Generates a GST-compliant invoice for this order
+              </p>
+            </div>
+          )}
 
           {/* Action buttons */}
           {(next || order.status === 'pending' || order.status === 'confirmed') && (

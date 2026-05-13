@@ -36,8 +36,9 @@ export default function VerifyScreen() {
         phone_e164: phone,
         otp,
       });
-      await login(res.data.principal_id, res.data.role);
-      router.replace('/(tabs)/');
+      const role = res.data.role ?? 'customer';
+      await login(res.data.principal_id, role);
+      router.replace(role === 'rider' ? '/rider/tasks' : '/(tabs)/');
     } catch {
       Alert.alert('Incorrect OTP', 'The code you entered is wrong or has expired.');
       setOtp('');

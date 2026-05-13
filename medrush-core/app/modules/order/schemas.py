@@ -83,6 +83,11 @@ class OrderOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OrderWithItemsOut(OrderOut):
+    """OrderOut extended with embedded line items — used for pharmacy order list."""
+    items: list[OrderItemOut] = []
+
+
 class OrderStatusHistoryOut(BaseModel):
     id: int
     order_id: str

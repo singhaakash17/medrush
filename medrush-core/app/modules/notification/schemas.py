@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from datetime import datetime
+from typing import Literal
 
 
 class DeliveryLogOut(BaseModel):
@@ -26,3 +27,8 @@ class DeviceTokenOut(BaseModel):
     registered_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class RegisterDeviceTokenIn(BaseModel):
+    token: str
+    platform: Literal["ios", "android", "web"] = "android"
