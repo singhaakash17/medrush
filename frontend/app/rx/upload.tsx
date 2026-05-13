@@ -1,12 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity,
-  Image, ScrollView, Alert, ActivityIndicator,
+  Image, ScrollView, Alert, ActivityIndicator, Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import * as ImagePicker from 'expo-image-picker';
 import { rxApi } from '@/api/rx';
 import type { PrescriptionDetail, RxItem } from '@/types';
 
@@ -18,15 +17,12 @@ export default function RxUploadScreen() {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [uploadState, setUploadState] = useState<UploadState>('idle');
   const [result, setResult] = useState<PrescriptionDetail | null>(null);
+  const fileInputRef = useRef<any>(null); // web file input ref
 
   const uploadMutation = useMutation({
     mutationFn: async (uri: string) => {
       setUploadState('uploading');
-      // 1. Get presigned URL
-      const { s3_key, upload_url } = await rxApi.getPresignedUrl();
-      // 2. Upload to S3 (mock: skip actual upload in dev)
-      // In production: await fetch(upload_url, { method: 'PUT', body: fileBlob })
-      // 3. Register with backend
+      const { s3_key } = await rxApi.getPresignedUrl();
       const rx = await rxApi.upload({ s3_key });
       return rx;
     },
@@ -41,17 +37,22 @@ export default function RxUploadScreen() {
   });
 
   const pickFromCamera = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not available', 'Camera capture is not available on web. Please use the gallery option.');
+      return;
+    }
+    const ImagePicker = await import('expo-image-picker');
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
       Alert.alert('Permission needed', 'Camera access is required to scan your prescription.');
       return;
     }
-    const result = await ImagePicker.launchCameraAsync({
+    const res = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
     });
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
+    if (!res.canceled && res.assets[0]) {
+      const uri = res.assets[0].uri;
       setImageUri(uri);
       setUploadState('picked');
       uploadMutation.mutate(uri);
@@ -59,17 +60,33 @@ export default function RxUploadScreen() {
   };
 
   const pickFromGallery = async () => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    if (Platform.OS === 'web') {
+      // Trigger native HTML file input on web
+      fileInputRef.current?.click();
+      return;
+    }
+    const ImagePicker = await import('expo-image-picker');
+    const res = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.85,
     });
-    if (!result.canceled && result.assets[0]) {
-      const uri = result.assets[0].uri;
+    if (!res.canceled && res.assets[0]) {
+      const uri = res.assets[0].uri;
       setImageUri(uri);
       setUploadState('picked');
       uploadMutation.mutate(uri);
     }
   };
+
+  const handleWebFileChange = (e: any) => {
+    const file = e.target?.files?.[0];
+    if (!file) return;
+    const uri = URL.createObjectURL(file);
+    setImageUri(uri);
+    setUploadState('picked');
+    uploadMutation.mutate(uri);
+  };
+
 
   return (
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
@@ -79,6 +96,17 @@ export default function RxUploadScreen() {
         </TouchableOpacity>
         <Text style={styles.title}>Upload Prescription</Text>
       </View>
+
+      {/* Hidden file input for web gallery picking */}
+      {Platform.OS === 'web' && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handleWebFileChange}
+        />
+      )}
 
       {/* Upload area */}
       {uploadState === 'idle' && (

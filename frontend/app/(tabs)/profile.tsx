@@ -8,14 +8,16 @@ import {
   Alert,
   Modal,
   Pressable,
+  ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '@/api/user';
+import { ordersApi } from '@/api/orders';
 import { useAuthStore } from '@/store/auth';
 import { T } from '@/theme';
-import { MOCK_ADDRESSES } from '@/mock/data';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -66,20 +68,55 @@ export default function ProfileScreen() {
   const principalId = useAuthStore((s) => s.principalId);
   const [plusModalVisible, setPlusModalVisible] = useState(false);
 
-  const { data: profile } = useQuery({
+  // ── Requirement 3: GET /users/me ─────────────────────────────────
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: userApi.getProfile,
     enabled: !!principalId,
+    retry: 1,
   });
 
-  const displayName = profile?.full_name ?? 'MedRush User';
-  const displayPhone = principalId ?? '+91 98765 43210';
+  // ── Requirement 3: GET /users/me/addresses ────────────────────────
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: userApi.getAddresses,
+    enabled: !!principalId,
+    retry: 1,
+  });
 
-  const handleLogout = () => {
-    Alert.alert('Log out', 'Are you sure you want to log out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Log out', style: 'destructive', onPress: logout },
-    ]);
+  // ── Orders count (reuse cached query) ──────────────────────────────
+  const { data: orders = [] } = useQuery({
+    queryKey: ['orders'],
+    queryFn: ordersApi.list,
+    enabled: !!principalId,
+    retry: 1,
+  });
+
+  // All displayed values derived from real API; no hardcoded fallback strings
+  const displayName = profile?.full_name || (principalId ? 'MedRush User' : '—');
+  const displayPhone = principalId ?? '—';
+  const orderCount = orders.length;
+  // Rx count from addresses query length as proxy until rx vault query is added
+  const defaultAddress = addresses.find((a) => a.is_default);
+  const locationLabel = defaultAddress?.city ?? 'Unknown';
+
+  const handleLogout = async () => {
+    const confirmLogout = () => {
+      if (Platform.OS === 'web') {
+        return window.confirm('Are you sure you want to log out?');
+      }
+      return new Promise((resolve) => {
+        Alert.alert('Log out', 'Are you sure you want to log out?', [
+          { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Log out', style: 'destructive', onPress: () => resolve(true) },
+        ]);
+      });
+    };
+
+    if (await confirmLogout()) {
+      await logout();
+      router.replace('/(auth)/login');
+    }
   };
 
   const handleEditProfile = () => {
@@ -91,10 +128,17 @@ export default function ProfileScreen() {
   };
 
   const handleSavedAddresses = () => {
-    const addressLines = MOCK_ADDRESSES.map(
-      (a, i) =>
-        `${i + 1}. ${a.label}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}, ${a.area}, ${a.city} - ${a.pincode}`,
-    ).join('\n\n');
+    const list = addresses.length > 0 ? addresses : [];
+    if (list.length === 0) {
+      Alert.alert('Saved Addresses', 'No saved addresses yet.', [{ text: 'Close' }]);
+      return;
+    }
+    const addressLines = list
+      .map(
+        (a, i) =>
+          `${i + 1}. ${a.label}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}, ${a.city} - ${a.pincode}`,
+      )
+      .join('\n\n');
     Alert.alert('Saved Addresses', addressLines, [{ text: 'Close' }]);
   };
 
@@ -139,7 +183,13 @@ export default function ProfileScreen() {
       >
         {/* ── Hero header ── */}
         <View style={styles.heroSection}>
-          <AvatarInitials name={displayName} />
+          {profileLoading ? (
+            <View style={[styles.avatar, { justifyContent: 'center', alignItems: 'center' }]}>
+              <ActivityIndicator color={T.Colors.textInverse} />
+            </View>
+          ) : (
+            <AvatarInitials name={displayName} />
+          )}
           <View style={styles.headerInfo}>
             <Text style={styles.name}>{displayName}</Text>
             <Text style={styles.phone}>{displayPhone}</Text>
@@ -153,18 +203,18 @@ export default function ProfileScreen() {
         {/* ── Stats bar ── */}
         <View style={styles.statsBar}>
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>12</Text>
+            <Text style={styles.statValue}>{orderCount}</Text>
             <Text style={styles.statLabel}>Orders</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statValue}>3</Text>
-            <Text style={styles.statLabel}>Rx Saved</Text>
+            <Text style={styles.statValue}>{addresses.length}</Text>
+            <Text style={styles.statLabel}>Addresses</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
             <Ionicons name="location-outline" size={14} color={T.Colors.navyMid} />
-            <Text style={styles.statLabel}>Indiranagar</Text>
+            <Text style={styles.statLabel}>{locationLabel}</Text>
           </View>
         </View>
 

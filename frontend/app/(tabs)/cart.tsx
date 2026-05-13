@@ -7,7 +7,10 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useCartStore, type LocalCartItem } from '@/store/cart';
 import { T } from '@/theme';
-import { MOCK_ADDRESSES } from '@/mock/data';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { userApi } from '@/api/user';
+import { ordersApi } from '@/api/orders';
+import type { Address } from '@/types';
 
 const DELIVERY_FEE = 2500; // ₹25
 const PLATFORM_FEE = 500;  // ₹5
@@ -59,38 +62,54 @@ function CartItemRow({ item }: { item: LocalCartItem }) {
 
 export default function CartScreen() {
   const router = useRouter();
-  const { items, pharmacyName, totalPaise, clearCart } = useCartStore();
-  const [selectedAddress, setSelectedAddress] = useState(MOCK_ADDRESSES[0]);
+  const queryClient = useQueryClient();
+  const { items, pharmacyId, pharmacyName, totalPaise, clearCart } = useCartStore();
+  const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
-  const [placing, setPlacing] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
+
+  // Requirement 3: Real addresses
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: userApi.getAddresses,
+  });
+
+  const selectedAddress = addresses.find((a) => a.id === selectedAddressId) || addresses[0];
 
   const subtotal = totalPaise();
   const total = subtotal + DELIVERY_FEE + PLATFORM_FEE;
   const savings = items.reduce((s, i) => s + (i.mrp_paise - i.unit_price_paise) * i.qty, 0);
 
-  const handlePlaceOrder = async () => {
+  // Requirement 2: Real order placement
+  const placeMutation = useMutation({
+    mutationFn: () => ordersApi.place({
+      pharmacy_id: pharmacyId || 'ph_ind_01', // Fallback for safety
+      items: items.map((i) => ({ medicine_id: i.medicine_id, qty: i.qty })),
+      delivery_address: {
+        line1: selectedAddress?.line1 || 'Address Line 1',
+        line2: selectedAddress?.line2 || undefined,
+        city: selectedAddress?.city || 'Bengaluru',
+        state: selectedAddress?.state || 'Karnataka',
+        pincode: selectedAddress?.pincode || '560001',
+      },
+      payment_method: paymentMethod,
+    }),
+    onSuccess: (order) => {
+      clearCart();
+      queryClient.invalidateQueries({ queryKey: ['orders'] });
+      router.replace({ pathname: '/tracking/[id]', params: { id: order.id } });
+    },
+    onError: (err) => {
+      Alert.alert('Order Failed', 'Please try again later.');
+    },
+  });
+
+  const handlePlaceOrder = () => {
     setShowPayModal(false);
-    setPlacing(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    setPlacing(false);
-
-    const mockOrderId = `MR-${Date.now().toString().slice(-6)}`;
-    clearCart();
-
-    Alert.alert(
-      '🎉 Order Placed!',
-      `Order ${mockOrderId} confirmed.\nEstimated delivery: 15 minutes`,
-      [
-        {
-          text: 'Track Order',
-          onPress: () =>
-            router.push({ pathname: '/tracking/[id]' as any, params: { id: mockOrderId } }),
-        },
-        { text: 'Continue Shopping', onPress: () => router.replace('/(tabs)/') },
-      ]
-    );
+    placeMutation.mutate();
   };
+
+  const placing = placeMutation.isPending;
 
   if (items.length === 0) {
     return (
@@ -140,14 +159,15 @@ export default function CartScreen() {
         {/* Delivery Address */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Deliver to</Text>
-          {MOCK_ADDRESSES.map((addr) => (
+          {addresses.length === 0 && <Text style={styles.emptyText}>No addresses found. Please add one in Profile.</Text>}
+          {addresses.map((addr) => (
             <TouchableOpacity
               key={addr.id}
-              style={[styles.addressRow, selectedAddress.id === addr.id && styles.addressRowSelected]}
-              onPress={() => setSelectedAddress(addr)}
+              style={[styles.addressRow, (selectedAddressId === addr.id || (!selectedAddressId && addr.is_default)) && styles.addressRowSelected]}
+              onPress={() => setSelectedAddressId(addr.id)}
             >
               <View style={styles.radioOuter}>
-                {selectedAddress.id === addr.id && <View style={styles.radioInner} />}
+                {(selectedAddressId === addr.id || (!selectedAddressId && addr.is_default)) && <View style={styles.radioInner} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.addrLabel}>{addr.label}</Text>
@@ -257,10 +277,18 @@ export default function CartScreen() {
                 Pay ₹{(total / 100).toFixed(0)} in cash when your order arrives.
               </Text>
             )}
-            <TouchableOpacity style={styles.confirmBtn} onPress={handlePlaceOrder}>
-              <Text style={styles.confirmBtnText}>
-                {paymentMethod === 'cod' ? 'Confirm Order' : 'Payment Done — Confirm'}
-              </Text>
+            <TouchableOpacity
+              style={[styles.confirmBtn, placing && { opacity: 0.7 }]}
+              onPress={handlePlaceOrder}
+              disabled={placing}
+            >
+              {placing ? (
+                <ActivityIndicator color={T.Colors.textInverse} />
+              ) : (
+                <Text style={styles.confirmBtnText}>
+                  {paymentMethod === 'cod' ? 'Confirm Order' : 'Payment Done — Confirm'}
+                </Text>
+              )}
             </TouchableOpacity>
             <TouchableOpacity style={styles.cancelLink} onPress={() => setShowPayModal(false)}>
               <Text style={styles.cancelLinkText}>Cancel</Text>

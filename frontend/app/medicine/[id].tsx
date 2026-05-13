@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/Button';
 import { formatPaise } from '@/lib/money';
 import { useCartStore } from '@/store/cart';
 import { T } from '@/theme';
-import { MEDICINES, PHARMACIES } from '@/mock/data';
 
 const SCHEDULE_INFO: Record<string, { label: string; color: string }> = {
   H: { label: 'Schedule H — Prescription required', color: T.Colors.amber },
@@ -39,24 +38,11 @@ export default function MedicineDetailScreen() {
     enabled: !!id,
   });
 
-  const mockMed = MEDICINES.find((m) => m.id === id);
-  const medicine = apiMedicine ?? (mockMed ? {
-    id: mockMed.id,
-    brand_name: mockMed.brand_name,
-    generic_name: mockMed.generic_name,
-    form: mockMed.form,
-    strength: mockMed.strength,
-    mrp_paise: mockMed.mrp_paise,
-    pack_size: mockMed.pack_size,
-    pack_unit: mockMed.pack_unit,
-    rx_required: mockMed.rx_required,
-    schedule: mockMed.rx_required ? 'H' : 'OTC',
-    is_discontinued: false,
-    manufacturer_id: mockMed.manufacturer,
-  } : null);
+  const medicine = apiMedicine;
 
   const qtyInCart = cartItems.find((i) => i.medicine_id === id)?.qty ?? 0;
-  const DEFAULT_PHARMACY = PHARMACIES[0];
+  const DEFAULT_PHARMACY_ID = 'ph_ind_01';
+  const DEFAULT_PHARMACY_NAME = 'Apollo Pharmacy';
 
   const handleAddToCart = () => {
     if (!medicine) return;
@@ -69,8 +55,8 @@ export default function MedicineDetailScreen() {
       unit_price_paise: medicine.mrp_paise,
       mrp_paise: medicine.mrp_paise,
       rx_required: medicine.rx_required ?? false,
-      pharmacy_id: DEFAULT_PHARMACY.pharmacy_id,
-      pharmacy_name: DEFAULT_PHARMACY.name,
+      pharmacy_id: DEFAULT_PHARMACY_ID,
+      pharmacy_name: DEFAULT_PHARMACY_NAME,
     });
     Alert.alert('Added to cart', `${medicine.brand_name} added to your cart.`);
   };

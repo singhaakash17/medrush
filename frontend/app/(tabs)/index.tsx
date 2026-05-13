@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi } from '@/api/orders';
+import { catalogApi } from '@/api/catalog';
 import { useAuthStore } from '@/store/auth';
 import { useCartStore } from '@/store/cart';
 import { OrderCard } from '@/components/OrderCard';
@@ -18,10 +19,10 @@ import { SlaTimer } from '@/components/SlaTimer';
 import { T } from '@/theme';
 import {
   PHARMACIES,
-  MEDICINES,
   type MockPharmacy,
   type MockMedicine,
 } from '@/mock/data';
+import type { Medicine } from '@/types';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -46,9 +47,6 @@ const CATEGORY_FILTERS = [
 const NEARBY_PHARMACIES = [...PHARMACIES]
   .sort((a, b) => a.distance_m - b.distance_m)
   .slice(0, 4);
-
-const POPULAR_MEDICINE_IDS = ['med_001', 'med_007', 'med_013', 'med_028', 'med_032', 'med_019'];
-const POPULAR_MEDICINES = MEDICINES.filter((m) => POPULAR_MEDICINE_IDS.includes(m.id));
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
@@ -107,7 +105,7 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
   );
 }
 
-function MedicineCard({ medicine }: { medicine: MockMedicine }) {
+function MedicineCard({ medicine }: { medicine: MockMedicine | Medicine }) {
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
   const items = useCartStore((s) => s.items);
@@ -180,6 +178,13 @@ export default function HomeScreen() {
     enabled: !!principalId,
     refetchInterval: 30_000,
     retry: 1,
+  });
+
+  // ── Requirement 5: GET /catalog/medicines/featured ──────────────────────────
+  const { data: featuredMedicines = [] } = useQuery({
+    queryKey: ['featured-medicines'],
+    queryFn: catalogApi.getFeatured,
+    staleTime: 5 * 60 * 1000, // 5 min
   });
 
   const activeOrders =
@@ -306,23 +311,25 @@ export default function HomeScreen() {
       </View>
 
       {/* ── Popular Medicines ── */}
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Popular Medicines</Text>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
-            <Text style={styles.seeAllText}>See all</Text>
-          </TouchableOpacity>
+      {featuredMedicines.length > 0 && (
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Popular Medicines</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/search')}>
+              <Text style={styles.seeAllText}>See all</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {featuredMedicines.map((medicine) => (
+              <MedicineCard key={medicine.id} medicine={medicine as any} />
+            ))}
+          </ScrollView>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {POPULAR_MEDICINES.map((medicine) => (
-            <MedicineCard key={medicine.id} medicine={medicine} />
-          ))}
-        </ScrollView>
-      </View>
+      )}
 
       {/* ── Rx Vault CTA ── */}
       <TouchableOpacity style={styles.rxVault} onPress={() => router.push('/rx/vault' as any)}>
