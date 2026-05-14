@@ -75,10 +75,19 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
+    db_url = settings.DATABASE_URL
+    is_remote = "localhost" not in db_url and "127.0.0.1" not in db_url
+    connect_args: dict = {
+        "server_settings": {"search_path": "extensions,tiger,public,pg_catalog"}
+    }
+    if is_remote:
+        connect_args["ssl"] = "require"
+
     connectable = async_engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args=connect_args,
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
