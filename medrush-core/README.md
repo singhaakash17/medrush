@@ -27,7 +27,7 @@ Backend API for MedRush — India's 15-minute prescription medicine delivery pla
 ```bash
 cd medrush-core
 python -m venv .venv
-source .venv/bin/activate
+source .venv/Scripts/activate
 pip install -r requirements.txt
 ```
 
