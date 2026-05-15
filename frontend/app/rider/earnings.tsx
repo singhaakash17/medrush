@@ -68,7 +68,7 @@ const chartStyles = StyleSheet.create({
   container: { flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 4 },
   col: { flex: 1, alignItems: 'center' },
   barWrap: { flex: 1, justifyContent: 'flex-end', width: '100%' },
-  bar: { backgroundColor: T.Colors.navyMid, borderRadius: T.Radius.xs, width: '100%' },
+  bar: { backgroundColor: T.Colors.navyMid, borderRadius: T.Radius.sm, width: '100%' },
   label: { fontSize: 9, color: T.Colors.textTertiary, marginTop: 4, fontWeight: T.FontWeight.semibold },
 });
 

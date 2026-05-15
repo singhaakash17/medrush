@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, FlatList, ActivityIndicator,
   Text, StyleSheet, TextInput, TouchableOpacity,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { catalogApi } from '@/api/catalog';
@@ -16,11 +16,21 @@ import * as Location from 'expo-location';
 type Tab = 'medicines' | 'pharmacies';
 
 export default function SearchScreen() {
-  const [query, setQuery] = useState('');
+  // `q` is passed by the home screen's category pills via router.push params
+  const { q: paramQ } = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(paramQ ?? '');
   const [tab, setTab] = useState<Tab>('medicines');
   const [userLat, setUserLat] = useState<number | null>(null);
   const [userLon, setUserLon] = useState<number | null>(null);
   const router = useRouter();
+
+  // Re-sync when the param changes (e.g. user taps a different category pill while already on this tab)
+  useEffect(() => {
+    if (paramQ) {
+      setQuery(paramQ);
+      setTab('medicines');
+    }
+  }, [paramQ]);
 
   const BENGALURU_DEFAULT = { lat: 12.9784, lon: 77.6408 };
 
@@ -72,7 +82,7 @@ export default function SearchScreen() {
           placeholderTextColor={T.Colors.textTertiary}
           value={query}
           onChangeText={setQuery}
-          autoFocus
+          autoFocus={!query}
           clearButtonMode="while-editing"
         />
         {isFetching && <ActivityIndicator size="small" color={T.Colors.navyMid} />}
@@ -109,8 +119,8 @@ export default function SearchScreen() {
           {query.trim().length < 2 && (
             <View style={styles.hint}>
               <Ionicons name="search-circle-outline" size={64} color={T.Colors.border} />
-              <Text style={styles.hintText}>Type at least 2 characters to search medicines</Text>
-              <Text style={styles.hintSub}>Supports brand name, generic, and salt search</Text>
+              <Text style={styles.hintText}>Search medicines by brand, generic, or salt name</Text>
+              <Text style={styles.hintSub}>Type at least 2 characters · or pick a category above</Text>
             </View>
           )}
           {query.trim().length >= 2 && !medFetching && medicines?.length === 0 && (

@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useOfflineInventory } from '@/hooks/useOfflineInventory';
@@ -13,10 +14,6 @@ import {
   User, Phone, MapPin, Receipt, AlertTriangle,
 } from 'lucide-react';
 
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 function actorId() {
   if (typeof window === 'undefined') return 'system';
   return localStorage.getItem('user_id') || 'system';
@@ -34,7 +31,7 @@ function newId(): string {
 export default function BillingPOSPage() {
   const router = useRouter();
   const pharmacyId = usePharmacyId();
-  const { items: inventory, syncStatus } = useOfflineInventory(pharmacyId);
+  const { items: inventory, syncStatus } = useOfflineInventory(pharmacyId ?? "");
 
   // ── Search ────────────────────────────────────────────────────────
   const [search, setSearch] = useState('');
@@ -117,12 +114,12 @@ export default function BillingPOSPage() {
     try {
       const profile = loadPharmacyProfile();
       const billId  = newId();
-      const billNo  = getNextBillNo(pharmacyId);
+      const billNo  = getNextBillNo(pharmacyId ?? "");
 
       const bill = {
         id: billId,
         bill_no: billNo,
-        pharmacy_id: pharmacyId,
+        pharmacy_id: pharmacyId ?? "",
         bill_type: 'walk_in' as const,
         pharmacy: {
           name: profile.name ?? 'Pharmacy',

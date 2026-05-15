@@ -7,11 +7,14 @@ import { useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { catalogApi } from '@/api/catalog';
+import { geoApi } from '@/api/geo';
 import { Button } from '@/components/ui/Button';
 import { formatPaise } from '@/lib/money';
 import { useCartStore } from '@/store/cart';
 import { T } from '@/theme';
-import { MEDICINES, PHARMACIES } from '@/mock/data';
+
+/** Default coords (Koramangala, Bengaluru) used when device location is unavailable. */
+const BENGALURU_DEFAULT = { lat: 12.9352, lon: 77.6245 };
 
 const SCHEDULE_INFO: Record<string, { label: string; color: string }> = {
   H: { label: 'Schedule H — Prescription required', color: T.Colors.amber },
@@ -39,27 +42,28 @@ export default function MedicineDetailScreen() {
     enabled: !!id,
   });
 
-  const mockMed = MEDICINES.find((m) => m.id === id);
-  // `isRealMedicine` is true only when the catalog API returned data — meaning
-  // the ID is known to the backend and can be ordered.
+  /** Fetch pharmacies near the user that stock this specific medicine. */
+  const { data: nearbyPharmacies } = useQuery({
+    queryKey: ['nearby-pharmacies-for-medicine', id],
+    queryFn: () =>
+      geoApi
+        .nearbyPharmacies({
+          lat: BENGALURU_DEFAULT.lat,
+          lon: BENGALURU_DEFAULT.lon,
+          radius_m: 5000,
+          medicine_id: id,
+        })
+        .catch(() => []),
+    enabled: !!id,
+  });
+
+  const nearestPharmacy = nearbyPharmacies?.[0] ?? null;
+
+  // `isRealMedicine` is true only when the catalog API returned data.
   const isRealMedicine = !!apiMedicine;
-  const medicine = apiMedicine ?? (mockMed ? {
-    id: mockMed.id,
-    brand_name: mockMed.brand_name,
-    generic_name: mockMed.generic_name,
-    form: mockMed.form,
-    strength: mockMed.strength,
-    mrp_paise: mockMed.mrp_paise,
-    pack_size: mockMed.pack_size,
-    pack_unit: mockMed.pack_unit,
-    rx_required: mockMed.rx_required,
-    schedule: mockMed.rx_required ? 'H' : 'OTC',
-    is_discontinued: false,
-    manufacturer_id: mockMed.manufacturer,
-  } : null);
+  const medicine = apiMedicine ?? null;
 
   const qtyInCart = cartItems.find((i) => i.medicine_id === id)?.qty ?? 0;
-  const DEFAULT_PHARMACY = PHARMACIES[0];
 
   const handleAddToCart = () => {
     if (!medicine) return;
@@ -70,17 +74,23 @@ export default function MedicineDetailScreen() {
       );
       return;
     }
+    if (!nearestPharmacy) {
+      Alert.alert(
+        'No Nearby Pharmacy',
+        'No pharmacy near you currently stocks this medicine. Try again in a moment.',
+      );
+      return;
+    }
     addItem({
       medicine_id: medicine.id,
       medicine_name: medicine.brand_name,
       generic_name: medicine.generic_name,
       form: medicine.form,
-      qty: 1,
-      unit_price_paise: medicine.mrp_paise,
-      mrp_paise: medicine.mrp_paise,
+      unit_price_paise: nearestPharmacy.selling_price_paise ?? medicine.mrp_paise,
+      mrp_paise: nearestPharmacy.mrp_paise ?? medicine.mrp_paise,
       rx_required: medicine.rx_required ?? false,
-      pharmacy_id: DEFAULT_PHARMACY.id,
-      pharmacy_name: DEFAULT_PHARMACY.name,
+      pharmacy_id: nearestPharmacy.pharmacy_id,
+      pharmacy_name: nearestPharmacy.name,
     });
     Alert.alert('Added to cart', `${medicine.brand_name} added to your cart.`);
   };
@@ -103,8 +113,14 @@ export default function MedicineDetailScreen() {
   }
 
   const scheduleInfo = medicine.schedule ? SCHEDULE_INFO[medicine.schedule] : null;
-  const discountPaise = Math.round(medicine.mrp_paise * 0.15);
-  const sellingPrice = medicine.mrp_paise - discountPaise;
+  // Use pharmacy's selling price if available; otherwise fall back to 15% off MRP.
+  const sellingPrice =
+    nearestPharmacy?.selling_price_paise ??
+    Math.round(medicine.mrp_paise * 0.85);
+  const displayMrp = nearestPharmacy?.mrp_paise ?? medicine.mrp_paise;
+  const discountPct = displayMrp > 0
+    ? Math.round(((displayMrp - sellingPrice) / displayMrp) * 100)
+    : 15;
 
   return (
     <View style={styles.screen}>
@@ -117,17 +133,23 @@ export default function MedicineDetailScreen() {
           <Text style={styles.brand}>{medicine.brand_name}</Text>
           <Text style={styles.generic}>{medicine.generic_name}</Text>
           <Text style={styles.form}>{medicine.form} · {medicine.strength} · {medicine.pack_size} {medicine.pack_unit}</Text>
-          <Text style={styles.manufacturer}>{medicine.manufacturer_id}</Text>
+          {nearestPharmacy && (
+            <Text style={styles.manufacturer}>
+              📍 {nearestPharmacy.name} · {Math.round(nearestPharmacy.distance_m / 100) / 10} km away
+            </Text>
+          )}
         </View>
 
         {/* Price card */}
         <View style={styles.priceBox}>
           <View style={styles.priceRow}>
             <Text style={styles.price}>{formatPaise(sellingPrice)}</Text>
-            <Text style={styles.mrp}>{formatPaise(medicine.mrp_paise)}</Text>
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>15% off</Text>
-            </View>
+            <Text style={styles.mrp}>{formatPaise(displayMrp)}</Text>
+            {discountPct > 0 && (
+              <View style={styles.discountBadge}>
+                <Text style={styles.discountText}>{discountPct}% off</Text>
+              </View>
+            )}
           </View>
           <Text style={styles.priceLabel}>MRP incl. all taxes · per pack</Text>
           {qtyInCart > 0 && (

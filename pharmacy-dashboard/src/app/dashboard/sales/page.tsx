@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, formatPaise } from '@/lib/api';
@@ -16,10 +17,6 @@ interface LedgerEntry {
   occurred_at: string;
 }
 
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 
 const REASON_META: Record<string, { label: string; color: string; icon: string }> = {
   walk_in_sale:  { label: 'Walk-in Sale',   color: 'text-emerald-700 bg-emerald-50 border-emerald-200', icon: '🛒' },

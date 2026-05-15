@@ -38,7 +38,7 @@ export default function VerifyScreen() {
       });
       const role = res.data.role ?? 'customer';
       await login(res.data.principal_id, role);
-      router.replace(role === 'rider' ? '/rider/tasks' : '/(tabs)/');
+      router.replace((role === 'rider' ? '/rider/tasks' : '/(tabs)/') as any);
     } catch {
       Alert.alert('Incorrect OTP', 'The code you entered is wrong or has expired.');
       setOtp('');

@@ -17,7 +17,7 @@ function RxCard({ rx }: { rx: Prescription }) {
   return (
     <TouchableOpacity
       style={styles.card}
-      onPress={() => router.push({ pathname: '/rx/[id]', params: { id: rx.id } })}
+      onPress={() => router.push({ pathname: '/rx/[id]' as any, params: { id: rx.id } })}
     >
       <View style={styles.cardIcon}>
         <Ionicons name="document-text" size={28} color="#0EA5E9" />

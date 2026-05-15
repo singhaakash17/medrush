@@ -5,10 +5,25 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useCartStore, type LocalCartItem } from '@/store/cart';
 import { T } from '@/theme';
-import { MOCK_ADDRESSES } from '@/mock/data';
 import { ordersApi } from '@/api/orders';
+import { userApi } from '@/api/user';
+import type { Address } from '@/types';
+
+/** Fallback address shown when the user has no saved addresses. */
+const FALLBACK_ADDRESS: Address = {
+  id: 'fallback',
+  principal_id: '',
+  label: 'Home',
+  line1: '27, 5th Cross, Koramangala',
+  line2: '6th Block',
+  city: 'Bengaluru',
+  state: 'Karnataka',
+  pincode: '560095',
+  is_default: true,
+};
 
 const DELIVERY_FEE = 2500; // ₹25
 const PLATFORM_FEE = 500;  // ₹5
@@ -61,7 +76,20 @@ function CartItemRow({ item }: { item: LocalCartItem }) {
 export default function CartScreen() {
   const router = useRouter();
   const { items, pharmacyId, pharmacyName, totalPaise, clearCart } = useCartStore();
-  const [selectedAddress, setSelectedAddress] = useState(MOCK_ADDRESSES[0]);
+
+  const { data: fetchedAddresses } = useQuery({
+    queryKey: ['user-addresses'],
+    queryFn: () => userApi.getAddresses().catch(() => [] as Address[]),
+  });
+
+  const addresses: Address[] =
+    fetchedAddresses && fetchedAddresses.length > 0
+      ? fetchedAddresses
+      : [FALLBACK_ADDRESS];
+
+  const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
+  const activeAddress = selectedAddress ?? addresses[0];
+
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('upi');
   const [placing, setPlacing] = useState(false);
   const [showPayModal, setShowPayModal] = useState(false);
@@ -79,11 +107,11 @@ export default function CartScreen() {
         pharmacy_id: pharmacyId!,
         items: items.map((i) => ({ medicine_id: i.medicine_id, qty: i.qty })),
         delivery_address: {
-          line1: selectedAddress.line1,
-          line2: (selectedAddress as any).area ?? undefined,
-          city: selectedAddress.city,
-          state: 'Karnataka',
-          pincode: selectedAddress.pincode,
+          line1: activeAddress.line1,
+          line2: activeAddress.line2 ?? undefined,
+          city: activeAddress.city,
+          state: activeAddress.state ?? 'Karnataka',
+          pincode: activeAddress.pincode,
         },
         payment_method: paymentMethod,
       });
@@ -157,14 +185,14 @@ export default function CartScreen() {
         {/* Delivery Address */}
         <View style={styles.sectionCard}>
           <Text style={styles.sectionTitle}>Deliver to</Text>
-          {MOCK_ADDRESSES.map((addr) => (
+          {addresses.map((addr) => (
             <TouchableOpacity
               key={addr.id}
-              style={[styles.addressRow, selectedAddress.id === addr.id && styles.addressRowSelected]}
+              style={[styles.addressRow, activeAddress.id === addr.id && styles.addressRowSelected]}
               onPress={() => setSelectedAddress(addr)}
             >
               <View style={styles.radioOuter}>
-                {selectedAddress.id === addr.id && <View style={styles.radioInner} />}
+                {activeAddress.id === addr.id && <View style={styles.radioInner} />}
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.addrLabel}>{addr.label}</Text>

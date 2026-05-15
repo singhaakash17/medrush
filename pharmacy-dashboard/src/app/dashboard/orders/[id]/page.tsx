@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, useRouter } from 'next/navigation';
@@ -25,15 +26,16 @@ interface Rx {
   items: RxItem[]; flags: RxFlag[];
 }
 interface OrderItem {
+  id: string; order_id: string;
   medicine_id: string; medicine_name: string; qty: number;
-  unit_price_paise: number; requires_rx: boolean;
+  unit_price_paise: number; total_paise: number; is_rx_item: boolean;
 }
 interface Order {
   id: string; status: OrderStatus; placed_at: string; sla_target_at: string;
   subtotal_paise: number; delivery_fee_paise: number; platform_fee_paise: number;
-  gst_paise: number; total_paise: number;
-  delivery_address: { line1: string; line2?: string; city: string; pincode: string };
-  items: OrderItem[]; prescription_id?: string;
+  tax_paise: number; total_paise: number;
+  delivery_address: { line1: string; line2?: string; city: string; pincode: string; state?: string };
+  prescription_id?: string;
 }
 
 const STEPS: OrderStatus[] = ['pending', 'confirmed', 'packed', 'dispatched', 'delivered'];
@@ -125,7 +127,7 @@ export default function OrderDetailPage() {
   const [checked, setChecked] = useState<Set<string>>(new Set());
   const [billingBusy, setBillingBusy] = useState(false);
 
-  const pharmacyId = typeof window !== 'undefined' ? (localStorage.getItem('pharmacy_id') ?? '') : '';
+  const pharmacyId = usePharmacyId() ?? '';
   const actorId    = typeof window !== 'undefined' ? (localStorage.getItem('user_id') ?? 'system') : 'system';
 
   const handlePrintInvoice = async () => {
@@ -136,7 +138,7 @@ export default function OrderDetailPage() {
       const billId  = `bill_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
       const billNo  = getNextBillNo(pharmacyId);
 
-      const items = order.items.map((item, idx) =>
+      const items = orderItems.map((item, idx) =>
         computeLineItem(
           item.medicine_id,
           item.medicine_name,
@@ -198,6 +200,12 @@ export default function OrderDetailPage() {
     queryFn: async () => (await api.get(`/orders/${id}`)).data,
   });
 
+  const { data: orderItems = [] } = useQuery<OrderItem[]>({
+    queryKey: ['order-items', id],
+    queryFn: async () => (await api.get(`/orders/${id}/items`)).data,
+    enabled: !!id,
+  });
+
   const { data: rx } = useQuery<Rx>({
     queryKey: ['order-rx', order?.prescription_id],
     queryFn: async () => (await api.get(`/rx/${order!.prescription_id}`)).data,
@@ -227,7 +235,7 @@ export default function OrderDetailPage() {
 
   const isActive    = ['pending', 'confirmed', 'packed', 'dispatched'].includes(order.status);
   const next        = NEXT_STATUS[order.status];
-  const allChecked  = order.items.every(i => checked.has(i.medicine_id));
+  const allChecked  = orderItems.every(i => checked.has(i.medicine_id));
   const needsCheck  = ['confirmed', 'packed'].includes(order.status);
   const canProceed  = !needsCheck || allChecked;
 
@@ -259,7 +267,7 @@ export default function OrderDetailPage() {
         </div>
         <div className="text-right">
           <div className="text-xl font-black text-surface-900">{formatPaise(order.total_paise)}</div>
-          <div className="text-xs text-surface-400">{order.items.length} items</div>
+          <div className="text-xs text-surface-400">{orderItems.length} items</div>
         </div>
       </div>
 
@@ -283,7 +291,7 @@ export default function OrderDetailPage() {
                 <div>
                   <h2 className="text-sm font-bold text-surface-800">Packing Checklist</h2>
                   <p className="text-xs text-surface-400">
-                    {checked.size}/{order.items.length} items verified
+                    {checked.size}/{orderItems.length} items verified
                   </p>
                 </div>
                 {allChecked && (
@@ -295,12 +303,12 @@ export default function OrderDetailPage() {
               <div className="h-1.5 rounded-full bg-surface-100 mb-4 overflow-hidden">
                 <div
                   className="h-full bg-emerald-500 rounded-full transition-all duration-500"
-                  style={{ width: `${(checked.size / order.items.length) * 100}%` }}
+                  style={{ width: `${(checked.size / orderItems.length) * 100}%` }}
                 />
               </div>
 
               <div className="space-y-2">
-                {order.items.map(item => (
+                {orderItems.map(item => (
                   <label
                     key={item.medicine_id}
                     className={clsx(
@@ -339,7 +347,7 @@ export default function OrderDetailPage() {
                       </p>
                       <p className="text-xs text-surface-400">Qty: {item.qty}</p>
                     </div>
-                    {item.requires_rx && (
+                    {item.is_rx_item && (
                       <span className="badge badge-packed text-[10px]">Rx</span>
                     )}
                   </label>
@@ -453,7 +461,7 @@ export default function OrderDetailPage() {
           <div className="card p-5">
             <h2 className="text-sm font-bold text-surface-800 mb-3">Order Summary</h2>
             <div className="space-y-2.5 mb-4">
-              {order.items.map(it => (
+              {orderItems.map(it => (
                 <div key={it.medicine_id} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-6 h-6 rounded-lg bg-navy-50 flex items-center justify-center shrink-0">
@@ -472,7 +480,7 @@ export default function OrderDetailPage() {
                 ['Subtotal',      order.subtotal_paise],
                 ['Delivery',      order.delivery_fee_paise],
                 ['Platform fee',  order.platform_fee_paise],
-                ['GST',           order.gst_paise],
+                ['GST',           order.tax_paise],
               ].map(([label, val]) => (
                 <div key={label as string} className="flex justify-between text-xs text-surface-500">
                   <span>{label}</span>

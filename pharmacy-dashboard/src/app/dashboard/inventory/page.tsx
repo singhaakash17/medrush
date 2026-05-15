@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useState } from 'react';
 import { formatPaise } from '@/lib/api';
 import { useOfflineInventory, ReceivePayload } from '@/hooks/useOfflineInventory';
@@ -10,10 +11,6 @@ import {
 } from 'lucide-react';
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 
 type AdjustReason = 'restock' | 'write_off' | 'damage' | 'expiry' | 'correction' | 'theft';
 const REASON_LABELS: Record<AdjustReason, string> = {
@@ -350,7 +347,7 @@ type ModalState = { type: 'sell' | 'receive' | 'adjust'; item: LocalInventoryIte
 
 export default function InventoryPage() {
   const pharmacyId = usePharmacyId();
-  const { items, isLoading, syncStatus, dirtyIds, sell, receive, adjust, toggle, retryFailed, dismissFailed } = useOfflineInventory(pharmacyId);
+  const { items, isLoading, syncStatus, dirtyIds, sell, receive, adjust, toggle, retryFailed, dismissFailed } = useOfflineInventory(pharmacyId ?? "");
   const [search, setSearch] = useState('');
   const [showLowStock, setShowLowStock] = useState(false);
   const [modal, setModal] = useState<ModalState>(null);

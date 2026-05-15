@@ -10,12 +10,12 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import { ordersApi } from '@/api/orders';
+import type { Order } from '@/types';
 import { T } from '@/theme';
-import { MOCK_ORDERS, type MockOrder } from '@/mock/data';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
-type OrderStatus = MockOrder['status'];
+type OrderStatus = 'pending' | 'confirmed' | 'packed' | 'dispatched' | 'delivered' | 'cancelled';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -29,7 +29,7 @@ const STATUS_CONFIG: Record<
     text: T.Colors.emeraldDark,
     icon: 'checkmark-circle',
   },
-  in_transit: {
+  dispatched: {
     label: 'In Transit',
     bg: T.Colors.navyLight,
     text: T.Colors.navyMid,
@@ -53,36 +53,45 @@ const STATUS_CONFIG: Record<
     text: '#166534',
     icon: 'cube',
   },
+  cancelled: {
+    label: 'Cancelled',
+    bg: T.Colors.crimsonLight,
+    text: T.Colors.crimson,
+    icon: 'close-circle',
+  },
 };
 
 function formatPrice(paise: number): string {
   return `₹${(paise / 100).toFixed(2)}`;
 }
 
+function formatDate(placed_at: string): string {
+  return new Date(placed_at).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
+}
+
+function formatTime(placed_at: string): string {
+  return new Date(placed_at).toLocaleTimeString('en-IN', {
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+/** Safely map any string status to our known OrderStatus enum. */
+function toOrderStatus(raw: string): OrderStatus {
+  return (raw in STATUS_CONFIG ? raw : 'pending') as OrderStatus;
+}
+
 // ─── Order Card ────────────────────────────────────────────────────────────────
 
-function OrderCard({ order }: { order: MockOrder }) {
-  const config = STATUS_CONFIG[order.status];
-
-  const handleReorder = () => {
-    Alert.alert(
-      'Reorder',
-      `Adding items from order ${order.short_code} to your cart.\n\n${order.items_summary}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Add to Cart',
-          onPress: () =>
-            Alert.alert('Added!', 'Items have been added to your cart.'),
-        },
-      ],
-    );
-  };
+function OrderCard({ order }: { order: Order }) {
+  const status = toOrderStatus(order.status);
+  const config = STATUS_CONFIG[status];
 
   const handleTrack = () => {
     Alert.alert(
       'Track Order',
-      `Order ${order.short_code} is currently ${config.label.toLowerCase()}.\n\nEstimated arrival: ${order.time}`,
+      `Order ${order.short_code} is currently ${config.label.toLowerCase()}.`,
       [{ text: 'OK' }],
     );
   };
@@ -94,7 +103,7 @@ function OrderCard({ order }: { order: MockOrder }) {
         <View>
           <Text style={styles.orderId}>{order.short_code}</Text>
           <Text style={styles.orderDate}>
-            {order.date} · {order.time}
+            {formatDate(order.placed_at)} · {formatTime(order.placed_at)}
           </Text>
         </View>
         <View style={[styles.statusBadge, { backgroundColor: config.bg }]}>
@@ -108,15 +117,7 @@ function OrderCard({ order }: { order: MockOrder }) {
       {/* Pharmacy */}
       <View style={styles.pharmacyRow}>
         <Ionicons name="storefront-outline" size={16} color={T.Colors.textTertiary} />
-        <Text style={styles.pharmacyName}>{order.pharmacy_name}</Text>
-      </View>
-
-      {/* Items */}
-      <View style={styles.itemsRow}>
-        <Ionicons name="medical-outline" size={16} color={T.Colors.textTertiary} />
-        <Text style={styles.itemsSummary} numberOfLines={2}>
-          {order.items_summary}
-        </Text>
+        <Text style={styles.pharmacyName}>{order.pharmacy_id}</Text>
       </View>
 
       {/* Footer */}
@@ -125,12 +126,7 @@ function OrderCard({ order }: { order: MockOrder }) {
           Total: <Text style={styles.totalAmount}>{formatPrice(order.total_paise)}</Text>
         </Text>
         <View style={styles.footerActions}>
-          {order.status === 'delivered' ? (
-            <TouchableOpacity style={styles.reorderBtn} onPress={handleReorder} activeOpacity={0.8}>
-              <Ionicons name="refresh-outline" size={14} color={T.Colors.navyMid} />
-              <Text style={styles.reorderText}>Reorder</Text>
-            </TouchableOpacity>
-          ) : (
+          {status !== 'delivered' && status !== 'cancelled' && (
             <TouchableOpacity style={styles.trackBtn} onPress={handleTrack} activeOpacity={0.8}>
               <Ionicons name="navigate-outline" size={14} color={T.Colors.textInverse} />
               <Text style={styles.trackText}>Track</Text>
@@ -145,23 +141,20 @@ function OrderCard({ order }: { order: MockOrder }) {
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
 export default function OrdersScreen() {
-  const { data: apiOrders, isError } = useQuery({
+  const { data: orders = [], isLoading } = useQuery<Order[]>({
     queryKey: ['orders'],
     queryFn: ordersApi.list,
     retry: 1,
   });
-
-  const displayOrders: MockOrder[] =
-    !isError && apiOrders && apiOrders.length > 0
-      ? (apiOrders as unknown as MockOrder[])
-      : MOCK_ORDERS;
 
   const ListEmpty = () => (
     <View style={styles.empty}>
       <View style={styles.emptyIconWrap}>
         <Ionicons name="receipt-outline" size={40} color={T.Colors.navyMid} />
       </View>
-      <Text style={styles.emptyTitle}>No orders yet</Text>
+      <Text style={styles.emptyTitle}>
+        {isLoading ? 'Loading orders…' : 'No orders yet'}
+      </Text>
       <Text style={styles.emptyText}>Your order history will appear here</Text>
     </View>
   );
@@ -170,21 +163,21 @@ export default function OrdersScreen() {
     <View style={styles.listHeader}>
       <Text style={styles.listHeaderTitle}>My Orders</Text>
       <View style={styles.listHeaderBadge}>
-        <Text style={styles.listHeaderCount}>{displayOrders.length}</Text>
+        <Text style={styles.listHeaderCount}>{orders.length}</Text>
       </View>
     </View>
   );
 
   return (
-    <FlatList<MockOrder>
-      data={displayOrders}
+    <FlatList<Order>
+      data={orders}
       keyExtractor={(item) => item.id}
       renderItem={({ item }) => <OrderCard order={item} />}
       contentContainerStyle={[
         styles.list,
-        displayOrders.length === 0 && styles.listEmpty,
+        orders.length === 0 && styles.listEmpty,
       ]}
-      ListHeaderComponent={displayOrders.length > 0 ? ListHeader : null}
+      ListHeaderComponent={orders.length > 0 ? ListHeader : null}
       ListEmptyComponent={ListEmpty}
       showsVerticalScrollIndicator={false}
       style={styles.screen}
@@ -244,16 +237,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 8,
-  },
-  pharmacyName: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
-  itemsRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
     marginBottom: T.Spacing.md,
   },
-  itemsSummary: { flex: 1, fontSize: T.FontSize.sm, color: T.Colors.textSecondary, lineHeight: 20 },
+  pharmacyName: { fontSize: T.FontSize.base, fontWeight: T.FontWeight.semibold, color: T.Colors.textSecondary },
 
   cardFooter: {
     flexDirection: 'row',
@@ -263,18 +249,6 @@ const styles = StyleSheet.create({
   totalLabel: { fontSize: T.FontSize.sm, color: T.Colors.textTertiary },
   totalAmount: { fontSize: T.FontSize.lg, fontWeight: T.FontWeight.black, color: T.Colors.textPrimary },
   footerActions: { flexDirection: 'row', gap: 8 },
-
-  reorderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderWidth: 1.5,
-    borderColor: T.Colors.navyMid,
-    borderRadius: T.Radius.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-  },
-  reorderText: { fontSize: T.FontSize.sm, fontWeight: T.FontWeight.bold, color: T.Colors.navyMid },
 
   trackBtn: {
     flexDirection: 'row',

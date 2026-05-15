@@ -34,3 +34,5 @@ coverage.xml
 
 # IDE
 .idea/
+.env
+certs/

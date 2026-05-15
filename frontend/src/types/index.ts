@@ -205,6 +205,7 @@ export interface Pharmacy {
   state: string;
   pincode: string;
   phone: string;
+  gstin?: string;
   status: string;
   is_open_now: boolean;
 }
