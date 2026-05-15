@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,22 +6,20 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
+import * as Location from 'expo-location';
 import { ordersApi } from '@/api/orders';
+import { geoApi } from '@/api/geo';
+import { catalogApi } from '@/api/catalog';
 import { useAuthStore } from '@/store/auth';
-import { useCartStore } from '@/store/cart';
 import { OrderCard } from '@/components/OrderCard';
 import { SlaTimer } from '@/components/SlaTimer';
 import { T } from '@/theme';
-import {
-  PHARMACIES,
-  MEDICINES,
-  type MockPharmacy,
-  type MockMedicine,
-} from '@/mock/data';
+import type { NearbyPharmacy, Medicine } from '@/types';
 
 // ─── Constants ─────────────────────────────────────────────────────────────────
 
@@ -43,16 +41,12 @@ const CATEGORY_FILTERS = [
   { label: 'Eye Care', emoji: '👁️', query: 'eye' },
 ];
 
-const NEARBY_PHARMACIES = [...PHARMACIES]
-  .sort((a, b) => a.distance_m - b.distance_m)
-  .slice(0, 4);
-
-const POPULAR_MEDICINE_IDS = ['med_dolo650', 'med_azithral500', 'med_pan40', 'med_cetzine10', 'med_shelcal500', 'med_glycomet500'];
-const POPULAR_MEDICINES = MEDICINES.filter((m) => POPULAR_MEDICINE_IDS.includes(m.id));
+// Popular search terms — one result each gives the home screen its "Popular Medicines" row
+const POPULAR_QUERIES = ['dolo', 'azithromycin', 'pantoprazole', 'cetirizine', 'shelcal', 'metformin'];
 
 // ─── Sub-components ────────────────────────────────────────────────────────────
 
-function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
+function PharmacyCard({ pharmacy }: { pharmacy: NearbyPharmacy }) {
   const router = useRouter();
   const distanceLabel =
     pharmacy.distance_m < 1000
@@ -63,7 +57,7 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
     <TouchableOpacity
       style={styles.pharmacyCard}
       activeOpacity={0.8}
-      onPress={() => router.push({ pathname: '/pharmacy/[id]' as any, params: { id: pharmacy.id } })}
+      onPress={() => router.push({ pathname: '/pharmacy/[id]' as any, params: { id: pharmacy.pharmacy_id } })}
     >
       <View style={styles.pharmacyCardHeader}>
         <View
@@ -91,13 +85,9 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
       <Text style={styles.pharmacyName} numberOfLines={2}>
         {pharmacy.name}
       </Text>
-      <Text style={styles.pharmacyArea}>{pharmacy.area}</Text>
+      <Text style={styles.pharmacyArea} numberOfLines={1}>{pharmacy.address_line1}</Text>
       <View style={styles.pharmacyMeta}>
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={12} color={T.Colors.amber} />
-          <Text style={styles.ratingText}>{pharmacy.rating.toFixed(1)}</Text>
-        </View>
-        <Text style={styles.metaDot}>·</Text>
+        <Ionicons name="location-outline" size={12} color={T.Colors.textTertiary} />
         <Text style={styles.distanceText}>{distanceLabel}</Text>
         <Text style={styles.metaDot}>·</Text>
         <Ionicons name="flash" size={12} color={T.Colors.navyMid} />
@@ -107,27 +97,9 @@ function PharmacyCard({ pharmacy }: { pharmacy: MockPharmacy }) {
   );
 }
 
-function MedicineCard({ medicine }: { medicine: MockMedicine }) {
+function MedicineCard({ medicine }: { medicine: Medicine }) {
   const router = useRouter();
-  const addItem = useCartStore((s) => s.addItem);
-  const items = useCartStore((s) => s.items);
-  const qty = items.find((i) => i.medicine_id === medicine.id)?.qty ?? 0;
   const priceRupees = (medicine.mrp_paise / 100).toFixed(0);
-  const DEFAULT_PHARMACY = PHARMACIES[0];
-
-  const handleAdd = () => {
-    addItem({
-      medicine_id: medicine.id,
-      medicine_name: medicine.brand_name,
-      generic_name: medicine.generic_name,
-      form: medicine.form,
-      unit_price_paise: Math.round(medicine.mrp_paise * 0.85),
-      mrp_paise: medicine.mrp_paise,
-      rx_required: medicine.rx_required,
-      pharmacy_id: DEFAULT_PHARMACY.id,
-      pharmacy_name: DEFAULT_PHARMACY.name,
-    });
-  };
 
   return (
     <TouchableOpacity
@@ -142,33 +114,47 @@ function MedicineCard({ medicine }: { medicine: MockMedicine }) {
       </View>
       <Text style={styles.medicineBrand} numberOfLines={1}>{medicine.brand_name}</Text>
       <Text style={styles.medicineGeneric} numberOfLines={1}>{medicine.generic_name}</Text>
-      <Text style={styles.medicineForm}>{medicine.form} · {medicine.strength}</Text>
+      <Text style={styles.medicineForm}>{medicine.form}{medicine.strength ? ` · ${medicine.strength}` : ''}</Text>
       <Text style={styles.medicinePrice}>₹{priceRupees}</Text>
-      {qty === 0 ? (
-        <TouchableOpacity style={styles.addBtn} activeOpacity={0.8} onPress={handleAdd}>
-          <Ionicons name="add" size={16} color={T.Colors.textInverse} />
-        </TouchableOpacity>
-      ) : (
-        <View style={styles.qtyRow}>
-          <TouchableOpacity style={styles.qtyBtn} onPress={() => useCartStore.getState().updateQty(medicine.id, qty - 1)}>
-            <Ionicons name="remove" size={14} color={T.Colors.navyMid} />
-          </TouchableOpacity>
-          <Text style={styles.qtyText}>{qty}</Text>
-          <TouchableOpacity style={styles.qtyBtn} onPress={handleAdd}>
-            <Ionicons name="add" size={14} color={T.Colors.navyMid} />
-          </TouchableOpacity>
-        </View>
-      )}
+      <TouchableOpacity
+        style={styles.addBtn}
+        activeOpacity={0.8}
+        onPress={() => router.push({ pathname: '/medicine/[id]' as any, params: { id: medicine.id } })}
+      >
+        <Ionicons name="chevron-forward" size={16} color={T.Colors.textInverse} />
+      </TouchableOpacity>
     </TouchableOpacity>
   );
 }
 
 // ─── Screen ────────────────────────────────────────────────────────────────────
 
+const BENGALURU_DEFAULT = { lat: 12.9784, lon: 77.6408 };
+
 export default function HomeScreen() {
   const router = useRouter();
   const principalId = useAuthStore((s) => s.principalId);
 
+  // ── Location ──────────────────────────────────────────────────────────────
+  const [userLat, setUserLat] = useState(BENGALURU_DEFAULT.lat);
+  const [userLon, setUserLon] = useState(BENGALURU_DEFAULT.lon);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status === 'granted') {
+          const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+          setUserLat(loc.coords.latitude);
+          setUserLon(loc.coords.longitude);
+        }
+      } catch {
+        // fall back to Bengaluru default
+      }
+    })();
+  }, []);
+
+  // ── Queries ───────────────────────────────────────────────────────────────
   const {
     data: orders,
     isLoading,
@@ -180,6 +166,23 @@ export default function HomeScreen() {
     enabled: !!principalId,
     refetchInterval: 30_000,
     retry: 1,
+  });
+
+  const { data: nearbyPharmacies, isLoading: pharmsLoading } = useQuery({
+    queryKey: ['nearby-home', userLat, userLon],
+    queryFn: () => geoApi.nearbyPharmacies({ lat: userLat, lon: userLon, radius_m: 5000 }),
+    staleTime: 60_000,
+  });
+
+  const { data: popularMedicines, isLoading: medsLoading } = useQuery({
+    queryKey: ['popular-medicines'],
+    queryFn: async () => {
+      const results = await Promise.all(
+        POPULAR_QUERIES.map((q) => catalogApi.search(q).then((r) => r[0] ?? null).catch(() => null)),
+      );
+      return results.filter(Boolean) as Medicine[];
+    },
+    staleTime: 5 * 60_000,
   });
 
   const activeOrders =
@@ -227,7 +230,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.etaContent}>
           <Text style={styles.etaTitle}>Medicines in 15 min</Text>
-          <Text style={styles.etaSubtitle}>80+ pharmacies live in Bengaluru</Text>
+          <Text style={styles.etaSubtitle}>28 pharmacies live in Bengaluru</Text>
         </View>
         <View style={styles.etaTimePill}>
           <Text style={styles.etaTimeText}>⚡ 15 min</Text>
@@ -294,15 +297,19 @@ export default function HomeScreen() {
             <Text style={styles.seeAllText}>See all</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {NEARBY_PHARMACIES.map((pharmacy) => (
-            <PharmacyCard key={pharmacy.id} pharmacy={pharmacy} />
-          ))}
-        </ScrollView>
+        {pharmsLoading ? (
+          <ActivityIndicator color={T.Colors.navyMid} style={{ marginTop: 16 }} />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {(nearbyPharmacies ?? []).slice(0, 5).map((pharmacy) => (
+              <PharmacyCard key={pharmacy.pharmacy_id} pharmacy={pharmacy} />
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {/* ── Popular Medicines ── */}
@@ -313,15 +320,19 @@ export default function HomeScreen() {
             <Text style={styles.seeAllText}>See all</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.horizontalScroll}
-        >
-          {POPULAR_MEDICINES.map((medicine) => (
-            <MedicineCard key={medicine.id} medicine={medicine} />
-          ))}
-        </ScrollView>
+        {medsLoading ? (
+          <ActivityIndicator color={T.Colors.navyMid} style={{ marginTop: 16 }} />
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.horizontalScroll}
+          >
+            {(popularMedicines ?? []).map((medicine) => (
+              <MedicineCard key={medicine.id} medicine={medicine} />
+            ))}
+          </ScrollView>
+        )}
       </View>
 
       {/* ── Rx Vault CTA ── */}

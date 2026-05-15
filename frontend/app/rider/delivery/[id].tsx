@@ -108,10 +108,10 @@ export default function ActiveDeliveryScreen() {
   });
 
   const step: DeliveryStep =
-    !assignment            ? 'pickup'
-    : assignment.status === 'assigned'  ? 'pickup'
-    : assignment.status === 'picked_up' ? 'otp'
-    : assignment.status === 'delivered' ? 'done'
+    !assignment                          ? 'pickup'
+    : assignment.status === 'assigned'   ? 'pickup'
+    : assignment.status === 'picked_up'  ? 'delivering'
+    : assignment.status === 'delivered'  ? 'done'
     : 'pickup';
 
   // GPS ping
@@ -248,25 +248,23 @@ export default function ActiveDeliveryScreen() {
 
       {step === 'delivering' && (
         <View style={styles.card}>
+          {/* Navigation section */}
           <View style={styles.actionHeader}>
             <View style={[styles.actionIcon, { backgroundColor: T.Colors.navyLight }]}>
               <Ionicons name="navigate-outline" size={22} color={T.Colors.navyMid} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.actionTitle}>En Route to Customer</Text>
-              <Text style={styles.actionSub}>Navigate to the drop address. Enter OTP on arrival.</Text>
+              <Text style={styles.actionSub}>Navigate to the drop address, then enter the OTP on arrival.</Text>
             </View>
           </View>
           <Pressable style={styles.secondaryBtn} onPress={openMaps}>
             <Ionicons name="map-outline" size={17} color={T.Colors.navyMid} />
             <Text style={styles.secondaryBtnText}>Open in Maps</Text>
           </Pressable>
-        </View>
-      )}
 
-      {step === 'otp' && (
-        <View style={styles.card}>
-          <View style={styles.actionHeader}>
+          {/* OTP entry section (shown once rider reaches customer) */}
+          <View style={[styles.actionHeader, { marginTop: T.Spacing.lg }]}>
             <View style={[styles.actionIcon, { backgroundColor: T.Colors.emeraldLight }]}>
               <Ionicons name="keypad-outline" size={22} color={T.Colors.emerald} />
             </View>

@@ -1,11 +1,14 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { clsx } from 'clsx';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import {
   ClipboardList, Package, TrendingUp, Zap,
   Circle, Settings, LogOut, ShoppingCart, Bell, Receipt,
 } from 'lucide-react';
+import { api } from '@/lib/api';
 
 const NAV = [
   { href: '/dashboard/orders',    icon: ClipboardList, label: 'Orders',    badge: 'live' },
@@ -20,8 +23,38 @@ const BOTTOM_NAV = [
   { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
 ];
 
+interface PharmacyInfo {
+  id: string;
+  name: string;
+  city: string;
+  status: string;
+  is_open_now?: boolean;
+}
+
 export function Sidebar() {
   const path = usePathname();
+  const pharmacyId = usePharmacyId();
+  const [pharmacy, setPharmacy] = useState<PharmacyInfo | null>(null);
+
+  useEffect(() => {
+    if (!pharmacyId) return;
+    api
+      .get(`/pharmacies/${pharmacyId}`)
+      .then((r) => setPharmacy(r.data))
+      .catch(() => {/* silently ignore — sidebar degrades gracefully */});
+  }, [pharmacyId]);
+
+  /** Two-letter avatar from the pharmacy name, e.g. "Kaveri Pharma" → "KP" */
+  const initials = pharmacy
+    ? pharmacy.name
+        .split(' ')
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((w) => w[0].toUpperCase())
+        .join('')
+    : '??';
+
+  const isOpen = pharmacy?.is_open_now ?? false;
 
   return (
     <aside className="w-60 min-h-screen flex flex-col bg-navy-900 text-white select-none">
@@ -44,16 +77,25 @@ export function Sidebar() {
       <div className="px-4 py-3 mx-3 mt-3 rounded-2xl bg-white/5 border border-white/8">
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-xl bg-navy-600 flex items-center justify-center shrink-0">
-            <span className="text-sm font-bold text-white">AP</span>
+            <span className="text-sm font-bold text-white">{initials}</span>
           </div>
           <div className="min-w-0">
-            <div className="text-xs font-semibold text-white truncate">Apollo Pharmacy</div>
-            <div className="text-[10px] text-white/40 truncate mt-0.5">Indiranagar, Bengaluru</div>
+            <div className="text-xs font-semibold text-white truncate">
+              {pharmacy ? pharmacy.name : 'Loading…'}
+            </div>
+            <div className="text-[10px] text-white/40 truncate mt-0.5">
+              {pharmacy ? pharmacy.city : '—'}
+            </div>
           </div>
           <div className="ml-auto shrink-0">
             <span className="flex items-center gap-1">
-              <Circle size={7} className="text-emerald-400 fill-emerald-400" />
-              <span className="text-[9px] text-emerald-400 font-semibold">OPEN</span>
+              <Circle
+                size={7}
+                className={isOpen ? 'text-emerald-400 fill-emerald-400' : 'text-white/30 fill-white/30'}
+              />
+              <span className={clsx('text-[9px] font-semibold', isOpen ? 'text-emerald-400' : 'text-white/30')}>
+                {isOpen ? 'OPEN' : 'CLOSED'}
+              </span>
             </span>
           </div>
         </div>
@@ -106,9 +148,12 @@ export function Sidebar() {
             </Link>
           );
         })}
-        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
-                           font-medium text-white/40 hover:text-crimson-400 hover:bg-crimson-500/10
-                           transition-all">
+        <button
+          onClick={() => { localStorage.removeItem('pharmacy_id'); localStorage.removeItem('user_id'); window.location.href = '/setup'; }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm
+                     font-medium text-white/40 hover:text-crimson-400 hover:bg-crimson-500/10
+                     transition-all"
+        >
           <LogOut size={17} strokeWidth={2} />
           Sign out
         </button>

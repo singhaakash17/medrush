@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, formatPaise } from '@/lib/api';
@@ -41,10 +42,6 @@ interface Payout {
   utr?: string;
 }
 
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 
 const PAYOUT_STATUS_STYLE: Record<string, string> = {
   pending: 'bg-amber-50 text-amber-700',

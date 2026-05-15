@@ -97,7 +97,7 @@ export default function SetupPage() {
                   setPharmacy(null);
                   setError('');
                 }}
-                placeholder="e.g. ph_ind_01"
+                placeholder="e.g. ph_blr001"
                 className="flex-1 px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-900 focus:border-transparent font-mono"
                 required
               />
@@ -170,18 +170,29 @@ export default function SetupPage() {
           </p>
         </form>
 
-        {/* Dev shortcut */}
-        <div className="mt-4 text-center">
-          <button
-            type="button"
-            onClick={() => {
-              setPharmacyId('ph_ind_01');
-              setUserId('ph_user_01');
-            }}
-            className="text-xs text-slate-400 hover:text-slate-600 underline"
-          >
-            Use demo pharmacy (ph_ind_01)
-          </button>
+        {/* Dev shortcuts */}
+        <div className="mt-4 p-4 bg-white rounded-2xl border border-slate-200 shadow-sm">
+          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Quick-fill (seeded pharmacies)</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {[
+              { id: 'ph_blr007', label: 'Kaveri Pharma' },
+              { id: 'ph_blr001', label: 'Lavish Pharma – Koramangala' },
+              { id: 'ph_blr002', label: 'Bengaluru Drug House' },
+              { id: 'ph_blr012', label: 'Revive Pharma 24/7 – Indiranagar' },
+              { id: 'ph_blr020', label: 'RAM Medicals – HSR Layout' },
+              { id: 'ph_blr025', label: 'Ramdev Medical – BTM' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => { setPharmacyId(id); setUserId(`owner_${id.replace('ph_', '')}`); setPharmacy(null); setError(''); }}
+                className="text-left px-2.5 py-2 rounded-lg bg-slate-50 hover:bg-blue-50 hover:text-blue-800 text-xs text-slate-600 font-mono transition-colors border border-slate-200"
+              >
+                <span className="font-bold">{id}</span>
+                <span className="block text-slate-400 font-sans truncate">{label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

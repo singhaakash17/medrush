@@ -15,7 +15,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { userApi } from '@/api/user';
 import { useAuthStore } from '@/store/auth';
 import { T } from '@/theme';
-import { MOCK_ADDRESSES } from '@/mock/data';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -72,6 +71,12 @@ export default function ProfileScreen() {
     enabled: !!principalId,
   });
 
+  const { data: addresses = [] } = useQuery({
+    queryKey: ['addresses'],
+    queryFn: userApi.getAddresses,
+    enabled: !!principalId,
+  });
+
   const displayName = profile?.full_name ?? 'MedRush User';
   const displayPhone = principalId ?? '+91 98765 43210';
 
@@ -91,9 +96,13 @@ export default function ProfileScreen() {
   };
 
   const handleSavedAddresses = () => {
-    const addressLines = MOCK_ADDRESSES.map(
+    if (addresses.length === 0) {
+      Alert.alert('Saved Addresses', 'No addresses saved yet.', [{ text: 'OK' }]);
+      return;
+    }
+    const addressLines = addresses.map(
       (a, i) =>
-        `${i + 1}. ${a.label}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}, ${a.area}, ${a.city} - ${a.pincode}`,
+        `${i + 1}. ${a.label}${a.is_default ? ' (Default)' : ''}\n   ${a.line1}${a.line2 ? `, ${a.line2}` : ''}, ${a.city} - ${a.pincode}`,
     ).join('\n\n');
     Alert.alert('Saved Addresses', addressLines, [{ text: 'Close' }]);
   };

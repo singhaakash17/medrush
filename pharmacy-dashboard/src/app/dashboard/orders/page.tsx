@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
@@ -39,10 +40,6 @@ const ACTIVE: OrderStatus[]  = ['pending', 'confirmed', 'packed', 'dispatched'];
 const DONE: OrderStatus[]    = ['delivered', 'cancelled'];
 type Tab = 'active' | 'done' | 'all';
 
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 
 // ── Skeleton ─────────────────────────────────────────────────────────────────
 function OrderSkeleton() {
@@ -162,9 +159,9 @@ export default function OrdersPage() {
   const router = useRouter();
   const pharmacyId = usePharmacyId();
 
-  // Redirect to setup if no pharmacy configured
+  // Redirect to setup only once we know no pharmacy is configured (null = still loading)
   useEffect(() => {
-    if (!pharmacyId) {
+    if (pharmacyId === '') {
       router.replace('/setup');
     }
   }, [pharmacyId, router]);

@@ -1,4 +1,5 @@
 'use client';
+import { usePharmacyId } from '@/hooks/usePharmacyId';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AlertTriangle, Clock, Package, RefreshCw, CheckCircle } from 'lucide-react';
@@ -24,10 +25,6 @@ interface AlertsData {
   expiring_soon: ExpiryAlert[];
 }
 
-function usePharmacyId() {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('pharmacy_id') ?? '';
-}
 
 function expiryColor(days: number) {
   if (days <= 0)  return 'bg-red-50 border-red-200 text-red-700';
